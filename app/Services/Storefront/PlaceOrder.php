@@ -9,6 +9,7 @@ use App\Models\OrderDetail;
 use App\Models\OrderTempData;
 use App\Services\AdminNavigation;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -49,14 +50,17 @@ class PlaceOrder
         }
 
         return DB::transaction(function () use ($cartToken, $country, $channel, $address, $summary) {
-            $order = Order::create([
+            // customer_orders has 30 NOT NULL columns with no defaults, so the
+            // whole row goes in at once. forceFill, not create(): every value
+            // here is server-built, and the columns that decide what an order
+            // is worth sit outside $fillable precisely so they cannot be set
+            // any other way.
+            $order = (new Order)->forceFill([
                 'session_id' => $cartToken,
                 'order_to' => 1,
                 // Denormalised variant list, kept for parity with the source.
                 'product_var_id' => collect($summary['items'])->pluck('variant_id')->implode(','),
                 'total_qty' => collect($summary['items'])->sum('quantity'),
-                'total_price' => $summary['subtotal'],
-                'postage_cost' => $summary['postage'],
                 'currency_sign' => $country->sign,
                 'country_id' => $country->id,
                 'country' => $country->name,
@@ -69,27 +73,31 @@ class PlaceOrder
                 'customer_name_last' => $address->last_name,
                 'customer_phone' => $address->phone,
                 'customer_email' => $address->email,
-                'payment_channel' => $channel,
                 'payment_code' => '',
                 'payment_url' => '',
                 'ship_channel' => 'courier',
-                'courier_service' => (string) $address->method,
-                'awb_number' => '',
-                'tracking_url' => '',
                 'remark_comment' => (string) $address->remark,
-                'tracking_milestone' => '',
+                'payment_channel' => $channel,
+                'total_price' => $summary['subtotal'],
+                'postage_cost' => $summary['postage'],
                 // The rate in force at the time of the order, not 1 as the
                 // source always wrote.
                 'to_myr_rate' => (float) $country->rate,
                 'myr_value_include_postage' => $summary['total'],
                 'myr_value_without_postage' => $summary['subtotal'],
+                'courier_service' => (string) $address->method,
+                'awb_number' => '',
+                'tracking_url' => '',
+                'tracking_milestone' => '',
+                'printed_awb' => 0,
                 // COD is placed as a live order; gateway payments wait for the
                 // callback to confirm them.
                 'status' => $channel === Order::CHANNEL_COD
                     ? Order::STATUS_NEW
                     : Order::STATUS_AWAITING_PAYMENT,
-                'printed_awb' => 0,
             ]);
+
+            $order->save();
 
             OrderDetail::create([
                 'order_id' => $order->id,
@@ -116,33 +124,67 @@ class PlaceOrder
      */
     public function confirm(Order $order, string $paymentCode = ''): bool
     {
-        if ((int) $order->status !== Order::STATUS_AWAITING_PAYMENT) {
-            return false;
-        }
+        $confirmed = DB::transaction(function () use ($order, $paymentCode) {
+            // The claim IS the guard. Reading the status and then writing it
+            // leaves a window: gateways retry, and two callbacks arriving
+            // together would both pass a separate check, both confirm, and the
+            // customer would get two confirmation emails. A conditional UPDATE
+            // takes the row lock, so exactly one of them comes back with 1.
+            $claimed = Order::query()
+                ->whereKey($order->getKey())
+                ->where('status', Order::STATUS_AWAITING_PAYMENT)
+                ->update([
+                    'status' => Order::STATUS_NEW,
+                    'payment_code' => $paymentCode ?: $order->payment_code,
+                    'updated_at' => now(),
+                ]);
 
-        DB::transaction(function () use ($order, $paymentCode) {
-            $order->forceFill([
-                'status' => Order::STATUS_NEW,
-                'payment_code' => $paymentCode ?: $order->payment_code,
-            ])->save();
+            if ($claimed === 0) {
+                return false;
+            }
 
             Cart::query()
                 ->where('session_id', $order->session_id)
                 ->whereIn('status', Cart::STATUS_ACTIVE)
                 ->update(['status' => Cart::STATUS_PAID, 'updated_at' => now()]);
+
+            return true;
         });
+
+        if (! $confirmed) {
+            return false;
+        }
+
+        // The in-memory copy is now behind the row that was just claimed.
+        $order->refresh();
 
         app(AdminNavigation::class)->flushCounts();
 
         return true;
     }
 
-    /** Mark a gateway payment as failed, leaving the basket intact to retry. */
+    /**
+     * A gateway payment that did not go through.
+     *
+     * Status 10 is one bucket in the source: the dashboard labels it "Failed
+     * Payment" while the SenangPay bot polls the same code as "pending, go and
+     * ask the gateway again". An unpaid order is already sitting in it, so
+     * there is nothing to write — the order stays claimable by a later
+     * successful callback, and the basket stays intact to retry with.
+     *
+     * The only thing that must not happen here is moving it out of 10, which
+     * would take it out of the bot's reach.
+     */
     public function fail(Order $order): void
     {
-        if ((int) $order->status === Order::STATUS_AWAITING_PAYMENT) {
-            $order->forceFill(['status' => Order::STATUS_AWAITING_PAYMENT])->save();
+        if ((int) $order->status !== Order::STATUS_AWAITING_PAYMENT) {
+            return;
         }
+
+        Log::info('Gateway reported a payment as not completed.', [
+            'order' => $order->id,
+            'channel' => $order->payment_channel,
+        ]);
     }
 
     public function detailFor(Order $order): ?OrderDetail

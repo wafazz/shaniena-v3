@@ -67,7 +67,14 @@ class SupportTicketController extends Controller
                 'from_staff' => $r->fromStaff(),
                 'at' => $r->created_at?->format('j M Y, h:iA'),
             ])->all(),
-            'attachments' => $ticket->attachments()->get(['id', 'filename', 'file_path'])->all(),
+            // The stored path never reaches the browser: it is imported data,
+            // and the file is served through an authorised route instead.
+            'attachments' => $ticket->attachments()->get(['id', 'filename'])
+                ->map(fn ($file) => [
+                    'id' => $file->id,
+                    'filename' => $file->filename,
+                    'url' => route('admin.tickets.attachment', [$ticket->id, $file->id]),
+                ])->all(),
             'statuses' => [
                 SupportTicket::STATUS_NEW, SupportTicket::STATUS_IN_PROGRESS,
                 SupportTicket::STATUS_WAITING_CUSTOMER, SupportTicket::STATUS_RESOLVED,

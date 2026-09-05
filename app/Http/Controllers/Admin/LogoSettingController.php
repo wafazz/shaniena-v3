@@ -26,7 +26,11 @@ class LogoSettingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $request->validate(['image' => ['required', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048']]);
+        // No SVG. It is XML, it can carry a <script>, and the logo is served
+        // from the storefront's own origin — that is stored XSS. Laravel's
+        // `image` rule already rejects it without `allow_svg`, so listing svg
+        // in `mimes` only made the failure message confusing.
+        $request->validate(['image' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048']]);
 
         $logo = ImageSetting::create([
             'use_type' => ImageSetting::TYPE_LOGO,

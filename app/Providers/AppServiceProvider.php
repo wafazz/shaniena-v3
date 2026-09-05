@@ -14,9 +14,13 @@ use App\Services\Shipping\DhlGateway;
 use App\Services\Shipping\JtExpressGateway;
 use App\Services\Shipping\NinjaVanGateway;
 use App\Services\StoreSettings;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -53,6 +57,51 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->registerGates();
+        $this->registerRateLimiters();
+    }
+
+    /**
+     * Rate limits on everything a stranger can reach without signing in.
+     *
+     * The source had none anywhere: a script could ask for a thousand password
+     * resets, place orders in a loop, or replay a payment callback as fast as
+     * the network allowed.
+     */
+    private function registerRateLimiters(): void
+    {
+        // Password reset sends mail to an address the caller chose, so it is
+        // both an email-bomb and an account-enumeration vector.
+        RateLimiter::for('password-reset', fn (Request $request) => [
+            Limit::perMinutes(15, 5)->by(Str::lower((string) $request->input('email'))),
+            Limit::perMinutes(15, 10)->by($request->ip()),
+        ]);
+
+        // Anything that sends a mail or an SMS on demand.
+        RateLimiter::for('verification', fn (Request $request) => [
+            Limit::perMinutes(10, 5)->by($request->user('web')?->getAuthIdentifier() ?: $request->ip()),
+        ]);
+
+        // Placing an order is cheap for us and expensive for a gateway, and a
+        // loop here fills the orders table with abandoned rows.
+        RateLimiter::for('checkout', fn (Request $request) => [
+            Limit::perMinute(10)->by($request->ip()),
+        ]);
+
+        // Order id plus email. Without a limit that pair is brute-forceable.
+        RateLimiter::for('order-lookup', fn (Request $request) => [
+            Limit::perMinute(15)->by($request->ip()),
+        ]);
+
+        // Public form that writes a row and can carry attachments.
+        RateLimiter::for('support', fn (Request $request) => [
+            Limit::perMinutes(10, 5)->by($request->ip()),
+        ]);
+
+        // Generous, because a gateway retrying a callback is normal and being
+        // throttled would lose a real payment — but not unbounded.
+        RateLimiter::for('gateway-callback', fn (Request $request) => [
+            Limit::perMinute(120)->by($request->ip()),
+        ]);
     }
 
     /**

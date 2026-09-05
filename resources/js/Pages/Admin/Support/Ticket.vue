@@ -37,7 +37,7 @@ function submit() {
                     <CCardBody>
                         <p class="mb-0" style="white-space: pre-wrap">{{ ticket.description }}</p>
                         <div v-if="attachments.length" class="mt-3 d-flex flex-wrap gap-2">
-                            <a v-for="file in attachments" :key="file.id" :href="file.file_path" target="_blank" rel="noopener"
+                            <a v-for="file in attachments" :key="file.id" :href="file.url" target="_blank" rel="noopener"
                                 class="small border rounded px-2 py-1">{{ file.filename }}</a>
                         </div>
                     </CCardBody>

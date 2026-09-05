@@ -45,9 +45,14 @@ class Order extends Model
     /** Awaiting payment — polled by the payment bot (Order::getPendingPayments). */
     public const STATUS_AWAITING_PAYMENT = 10;
 
+    /**
+     * The one status vocabulary. `resources/js/Components/StatusPill.vue`
+     * carries the same map for rendering, and a test holds the two in step —
+     * the source had three different label sets for the same seven codes.
+     */
     public const STATUSES = [
         self::STATUS_DRAFT => 'Draft',
-        self::STATUS_NEW => 'New',
+        self::STATUS_NEW => 'New Order',
         self::STATUS_PROCESSING => 'Processing',
         self::STATUS_IN_DELIVERY => 'In Delivery',
         self::STATUS_COMPLETED => 'Completed',
@@ -85,7 +90,29 @@ class Order extends Model
 
     public const CHANNEL_STRIPE = 'stripe';
 
-    protected $guarded = ['id'];
+    /**
+     * An allowlist, and a deliberately incomplete one.
+     *
+     * `status`, the money columns and the courier fields are NOT here: those
+     * are the four things an attacker would want to set, and leaving them out
+     * means a stray `Order::create($request->all())` cannot touch them. Every
+     * legitimate writer sets them through forceFill(), which greps cleanly.
+     */
+    protected $fillable = [
+        'session_id', 'order_to', 'product_var_id', 'total_qty',
+        'currency_sign', 'country_id', 'country', 'state', 'city', 'postcode',
+        'address_1', 'address_2',
+        'customer_name', 'customer_name_last', 'customer_phone', 'customer_email',
+        'payment_code', 'payment_url', 'ship_channel', 'remark_comment',
+    ];
+
+    /** Set only through forceFill, never mass assignment. */
+    public const PROTECTED_COLUMNS = [
+        'status', 'payment_channel', 'total_price', 'postage_cost',
+        'to_myr_rate', 'myr_value_include_postage', 'myr_value_without_postage',
+        'courier_service', 'awb_number', 'tracking_url', 'tracking_milestone',
+        'printed_awb',
+    ];
 
     protected function casts(): array
     {

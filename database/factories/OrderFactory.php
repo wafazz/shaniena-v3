@@ -17,6 +17,16 @@ class OrderFactory extends Factory
 {
     protected $model = Order::class;
 
+    /**
+     * Order deliberately keeps status, money and courier columns out of
+     * $fillable, so a factory has to write them the same way the application
+     * does — explicitly, rather than through mass assignment.
+     */
+    public function newModel(array $attributes = []): Order
+    {
+        return (new Order)->forceFill($attributes);
+    }
+
     public function definition(): array
     {
         $qty = $this->faker->numberBetween(1, 4);

@@ -86,7 +86,11 @@ class HomeController extends Controller
             ->where('status', true)
             ->with(['images', 'variants'])
             ->whereIn('id', $ids)
-            ->orderByRaw('FIELD(id, '.$ids->implode(',').')')
+            // Bound, not interpolated. These ids come from the database, so
+            // this was never exploitable — but it was the only interpolated
+            // SQL left in the codebase, and it is a poor pattern to leave as
+            // precedent for the next person who needs a FIELD() replay.
+            ->orderByRaw('FIELD(id, '.$ids->map(fn () => '?')->implode(',').')', $ids->all())
             ->get();
     }
 

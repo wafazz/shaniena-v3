@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\SliderController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StockControlController;
 use App\Http\Controllers\Admin\StoreSettingController;
+use App\Http\Controllers\Admin\SupportAttachmentController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Shop\AccountController;
 use App\Http\Controllers\Shop\Auth\CustomerAuthController;
@@ -73,9 +74,13 @@ Route::put('cart/{line}', [CartController::class, 'update'])->name('shop.cart.up
 Route::delete('cart/{line}', [CartController::class, 'destroy'])->name('shop.cart.destroy');
 
 Route::get('checkout', [CheckoutController::class, 'show'])->name('shop.checkout');
-Route::post('checkout/address', [CheckoutController::class, 'address'])->name('shop.checkout.address');
+Route::post('checkout/address', [CheckoutController::class, 'address'])
+    ->middleware('throttle:checkout')
+    ->name('shop.checkout.address');
 
-Route::get('track-order', OrderTrackingController::class)->name('shop.track');
+Route::get('track-order', OrderTrackingController::class)
+    ->middleware('throttle:order-lookup')
+    ->name('shop.track');
 Route::get('blog', [ContentController::class, 'blog'])->name('shop.blog');
 Route::get('blog/{post}', [ContentController::class, 'post'])->name('shop.post');
 Route::get('contact', [ContentController::class, 'contact'])->name('shop.contact');
@@ -85,12 +90,18 @@ Route::middleware('guest:web')->group(function () {
     Route::get('login', [CustomerAuthController::class, 'showLogin'])->name('shop.login');
     Route::post('login', [CustomerAuthController::class, 'login'])->name('shop.login.store');
     Route::get('register', [CustomerAuthController::class, 'showRegister'])->name('shop.register');
-    Route::post('register', [CustomerAuthController::class, 'register'])->name('shop.register.store');
+    Route::post('register', [CustomerAuthController::class, 'register'])
+        ->middleware('throttle:verification')
+        ->name('shop.register.store');
 });
 
 Route::get('verify-email', [CustomerAuthController::class, 'showVerify'])->name('shop.verify');
-Route::post('verify-email', [CustomerAuthController::class, 'verify'])->name('shop.verify.store');
-Route::post('verify-email/resend', [CustomerAuthController::class, 'resend'])->name('shop.verify.resend');
+Route::post('verify-email', [CustomerAuthController::class, 'verify'])
+    ->middleware('throttle:verification')
+    ->name('shop.verify.store');
+Route::post('verify-email/resend', [CustomerAuthController::class, 'resend'])
+    ->middleware('throttle:verification')
+    ->name('shop.verify.resend');
 Route::post('logout', [CustomerAuthController::class, 'logout'])->name('shop.logout');
 
 Route::middleware('auth:web')->group(function () {
@@ -99,15 +110,21 @@ Route::middleware('auth:web')->group(function () {
 });
 
 // --- payment -------------------------------------------------------------
-Route::post('pay/{channel}', [PaymentController::class, 'start'])->name('shop.pay');
+Route::post('pay/{channel}', [PaymentController::class, 'start'])
+    ->middleware('throttle:checkout')
+    ->name('shop.pay');
 Route::get('pay/{channel}/return', [PaymentController::class, 'return'])->name('shop.pay.return');
 Route::get('order/{order}/thanks', [PaymentController::class, 'thanks'])->name('shop.order.thanks');
 Route::get('order/{order}/failed', [PaymentController::class, 'failed'])->name('shop.order.failed');
 
 // --- support -------------------------------------------------------------
 Route::get('support', [SupportController::class, 'show'])->name('shop.support');
-Route::post('support', [SupportController::class, 'store'])->name('shop.support.store');
-Route::post('support/reply', [SupportController::class, 'reply'])->name('shop.support.reply');
+Route::post('support', [SupportController::class, 'store'])
+    ->middleware('throttle:support')
+    ->name('shop.support.store');
+Route::post('support/reply', [SupportController::class, 'reply'])
+    ->middleware('throttle:support')
+    ->name('shop.support.reply');
 
 foreach (['about', 'policy', 'terms'] as $page) {
     Route::get($page, [ContentController::class, 'page'])->defaults('page', $page)->name("shop.page.{$page}");
@@ -130,9 +147,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('login', [LoginController::class, 'store'])->name('login.store');
 
         Route::get('forgot-password', [PasswordResetController::class, 'showRequestForm'])->name('password.request');
-        Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+        Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink'])
+            ->middleware('throttle:password-reset')
+            ->name('password.email');
         Route::get('reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
-        Route::post('reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
+        Route::post('reset-password', [PasswordResetController::class, 'reset'])
+            ->middleware('throttle:password-reset')
+            ->name('password.update');
     });
 
     Route::middleware('auth:admin')->group(function () {
@@ -143,7 +164,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile');
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::get('password', [ProfileController::class, 'editPassword'])->name('password');
-        Route::put('password', [ProfileController::class, 'updatePassword'])->name('password.update');
+        // Not `password.update`: the password-reset flow already owns that
+        // name. Two routes sharing one name means route() silently resolves to
+        // whichever registered last.
+        Route::put('password', [ProfileController::class, 'updatePassword'])->name('password.change');
 
         Route::get('dashboard', DashboardController::class)
             ->middleware('page:dashboard')
@@ -328,6 +352,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('support/tickets', [SupportTicketController::class, 'index'])->name('tickets.index');
             Route::get('support/tickets/{ticket:id}', [SupportTicketController::class, 'show'])->name('tickets.show');
             Route::post('support/tickets/{ticket:id}/reply', [SupportTicketController::class, 'reply'])->name('tickets.reply');
+
+            Route::get('support/tickets/{ticket:id}/attachments/{attachment:id}', SupportAttachmentController::class)
+                ->name('tickets.attachment');
         });
 
         Route::get('sales-report', SalesReportController::class)
@@ -361,4 +388,5 @@ Route::prefix('admin')->name('admin.')->group(function () {
 */
 
 Route::post('payment/callback/{channel}', [PaymentController::class, 'callback'])
+    ->middleware('throttle:gateway-callback')
     ->name('shop.pay.callback');
