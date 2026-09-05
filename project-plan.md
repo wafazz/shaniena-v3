@@ -169,6 +169,24 @@
 
 ---
 
+## Schema Gap — tables the code needs that the dump lacks
+
+Resolved (migrations written from the source project's pending `sql/` files):
+`store_settings`, `blog_views`, `sliders`, `ninjavan_token`
+
+**Still missing — DDL required before the dependent features can migrate:**
+
+| Table | Needed by | Why it cannot be reconstructed |
+|---|---|---|
+| `bayarcash_api` | Bayarcash admin settings | Only an `ALTER` exists in `sql/`; base DDL unknown |
+| `bayarcash_transactions` | Bayarcash payments | Column types/precision unknown |
+| `cod_charges` | COD fee calculation | `benchmark_amount`, `cod_fee_below/above` are money — precision must not be guessed |
+| `membership`, `membership_point_history` | Loyalty points | `point_amount`, `purchase_amount` are money |
+| `phone_verify_code` | Phone verification | Column names known, types not |
+| `announcement` | Admin announcements | Unknown |
+| `ninjavan_setting`, `poslaju_setting` | Courier config | Unknown |
+| `product`, `category`, `customer_order`, `member`, `so_states` | `shop/*` controllers | **Separate database** — a second shop subsystem, not part of `2025_rozeyana` |
+
 ## Open Risks
 
 1. **Data source for import** — local `2025_rozeyana` (port 3307) has only **22 of 59 tables**. `base_ecom.sql` (4.1 MB) has all 59. Live remote DB is the true source. *Must confirm which is authoritative before Phase 2.13.*
