@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { CChartLine } from '@coreui/vue-chartjs';
 import AdminLayout from '../../Layouts/AdminLayout.vue';
@@ -13,7 +13,50 @@ const props = defineProps({
     activity: { type: Array, default: () => [] },
 });
 
-const m = computed(() => props.metrics);
+// Live figures overlay the page-load ones as they arrive.
+const live = ref(null);
+
+const m = computed(() => {
+    if (!props.metrics) return null;
+    if (!live.value) return props.metrics;
+
+    return {
+        ...props.metrics,
+        generated_at: live.value.generated_at,
+        today: live.value.today,
+        queues: live.value.queues,
+        visitors: live.value.visitors,
+    };
+});
+
+const liveOrders = computed(() => live.value?.orders ?? props.latestOrders);
+
+// Polled, not streamed. The source held a server-sent-event connection open
+// per signed-in admin and re-ran eight queries every two seconds.
+const POLL_MS = 30000;
+let timer = null;
+
+async function pull() {
+    try {
+        const response = await fetch('/admin/dashboard/live', {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (response.ok) live.value = await response.json();
+    } catch {
+        // A missed poll is not worth surfacing; the next one will catch up.
+    }
+}
+
+onMounted(() => {
+    pull();
+    timer = setInterval(() => {
+        // Nothing to refresh while the tab is in the background.
+        if (document.visibilityState === 'visible') pull();
+    }, POLL_MS);
+});
+
+onBeforeUnmount(() => clearInterval(timer));
 
 const money = (v) =>
     Number(v ?? 0).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -78,6 +121,16 @@ const orderColumns = [
             <p class="small text-body-secondary mb-0">
                 <template v-if="generatedAt">Figures as at {{ generatedAt }}</template>
                 <template v-else>Loading figures…</template>
+            </p>
+
+            <!-- Browsing right now. Its own line rather than a headline tile:
+                 it is a pulse, not a number anyone acts on. -->
+            <p v-if="m && m.visitors" class="small mb-0 d-flex align-items-center gap-2">
+                <span class="live-dot" :class="{ 'is-quiet': !m.visitors.live }" aria-hidden="true"></span>
+                <span>
+                    <span class="fw-semibold num">{{ m.visitors.live }}</span>
+                    <span class="text-body-secondary"> browsing now · {{ m.visitors.today }} today</span>
+                </span>
             </p>
         </div>
 
@@ -180,7 +233,7 @@ const orderColumns = [
                     <CCardBody class="p-0">
                         <DataTable
                             :columns="orderColumns"
-                            :rows="latestOrders"
+                            :rows="liveOrders"
                             min-width="0"
                             empty-title="No orders yet."
                             empty-body="They'll appear here as they come in."
@@ -219,3 +272,17 @@ const orderColumns = [
         </CCard>
     </AdminLayout>
 </template>
+
+<style scoped>
+.live-dot {
+    width: .5rem;
+    height: .5rem;
+    border-radius: 50%;
+    background: var(--cui-success, #2eb85c);
+    display: inline-block;
+}
+
+.live-dot.is-quiet {
+    background: var(--cui-secondary-color, #8a93a2);
+}
+</style>

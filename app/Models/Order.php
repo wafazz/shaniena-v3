@@ -75,6 +75,15 @@ class Order extends Model
         self::STATUS_CANCELLED => Cart::STATUS_CANCELLED,
     ];
 
+    /** Payment channels, as written to customer_orders.payment_channel. */
+    public const CHANNEL_COD = 'cod';
+
+    public const CHANNEL_SENANGPAY = 'senangpay';
+
+    public const CHANNEL_BAYARCASH = 'bayarcash';
+
+    public const CHANNEL_STRIPE = 'stripe';
+
     protected $guarded = ['id'];
 
     protected function casts(): array

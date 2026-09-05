@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\RefreshVisitorCounts;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Support\Carbon;
@@ -57,6 +58,27 @@ class DashboardMetrics
                 'trend' => $this->trend(),
             ];
         });
+    }
+
+    /**
+     * The figures that move minute to minute. Kept out of all() so the live
+     * feed can refresh them without recomputing the month-to-date aggregates.
+     *
+     * @return array<string, mixed>
+     */
+    public function live(): array
+    {
+        $today = Carbon::today();
+
+        return [
+            'generated_at' => now()->toIso8601String(),
+            'visitors' => RefreshVisitorCounts::counts(),
+            'today' => [
+                'sales' => $this->salesBetween($today, Carbon::now()),
+                'orders' => $this->ordersBetween($today, Carbon::now()),
+            ],
+            'queues' => $this->queueCounts(),
+        ];
     }
 
     public function flush(): void

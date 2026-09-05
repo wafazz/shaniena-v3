@@ -118,6 +118,12 @@ class OrderQueueController extends Controller
             'tracking_url' => $order->tracking_url ?: null,
             'printed_awb' => (bool) $order->printed_awb,
             'transitions' => Order::ALLOWED_TRANSITIONS[$order->status] ?? [],
+            // Bookable when it is a new order with a courier chosen and no AWB.
+            'can_ship' => (int) $order->status === Order::STATUS_NEW
+                && blank($order->awb_number)
+                && filled($order->courier_service),
+            'can_print' => filled($order->awb_number),
+            'reprint' => (bool) $order->printed_awb,
             'lines' => $order->lines->map(fn ($line) => [
                 'id' => $line->id,
                 'name' => $line->product?->name ?? 'Product removed',

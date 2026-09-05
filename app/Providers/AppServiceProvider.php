@@ -5,6 +5,14 @@ namespace App\Providers;
 use App\Auth\LegacyHashUserProvider;
 use App\Models\MemberHq;
 use App\Services\PageAccess;
+use App\Services\Payments\BayarcashGateway;
+use App\Services\Payments\CodGateway;
+use App\Services\Payments\PaymentGateways;
+use App\Services\Payments\SenangPayGateway;
+use App\Services\Shipping\Couriers;
+use App\Services\Shipping\DhlGateway;
+use App\Services\Shipping\JtExpressGateway;
+use App\Services\Shipping\NinjaVanGateway;
 use App\Services\StoreSettings;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -19,6 +27,20 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(StoreSettings::class);
         $this->app->singleton(PageAccess::class);
+
+        // The payment channels this store can offer. Each decides for itself
+        // whether it is switched on and configured.
+        $this->app->singleton(PaymentGateways::class, fn ($app) => new PaymentGateways([
+            $app->make(CodGateway::class),
+            $app->make(SenangPayGateway::class),
+            $app->make(BayarcashGateway::class),
+        ]));
+
+        $this->app->singleton(Couriers::class, fn ($app) => new Couriers([
+            $app->make(JtExpressGateway::class),
+            $app->make(NinjaVanGateway::class),
+            $app->make(DhlGateway::class),
+        ]));
     }
 
     /**

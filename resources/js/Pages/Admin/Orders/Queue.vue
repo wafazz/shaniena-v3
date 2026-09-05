@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import AdminLayout from '../../../Layouts/AdminLayout.vue';
 import DataTable from '../../../Components/DataTable.vue';
 import MoneyCell from '../../../Components/MoneyCell.vue';
@@ -69,6 +69,47 @@ function toggleAll(event) {
     selected.value = event.target.checked ? [...selectableIds.value] : [];
 }
 
+function ship(order) {
+    router.post(`/admin/orders/${order.id}/ship`, {}, { preserveScroll: true });
+}
+
+const page = usePage();
+
+// A PDF, not an Inertia visit — open it rather than routing to it.
+function printAwb(order) {
+    window.open(`/admin/orders/${order.id}/awb`, '_blank', 'noopener');
+}
+
+function bulkPrint() {
+    // POST so a long id list never ends up in a URL or a proxy log.
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = '/admin/orders/awb';
+    form.target = '_blank';
+
+    const field = (name, value) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+    };
+
+    field('_token', page.props.csrf_token);
+    selected.value.forEach((id) => field('orders[]', id));
+
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+}
+
+function bulkShip() {
+    router.post('/admin/orders/ship', { orders: selected.value }, {
+        preserveScroll: true,
+        onSuccess: () => { selected.value = []; },
+    });
+}
+
 function move(order, to) {
     router.post(`/admin/orders/${order.id}/status`, { to }, { preserveScroll: true });
 }
@@ -79,6 +120,18 @@ function bulkMove(to) {
         onSuccess: () => { selected.value = []; },
     });
 }
+
+// Every selected order is bookable.
+const canBulkShip = computed(() => {
+    const chosen = rows.value.filter((r) => selected.value.includes(r.id));
+    return chosen.length > 0 && chosen.every((r) => r.can_ship);
+});
+
+// Every selected order already has an AWB to print.
+const canBulkPrint = computed(() => {
+    const chosen = rows.value.filter((r) => selected.value.includes(r.id));
+    return chosen.length > 0 && chosen.every((r) => r.can_print);
+});
 
 // The one bulk move every selected order can actually take.
 const bulkTarget = computed(() => {
@@ -123,7 +176,12 @@ const bulkTarget = computed(() => {
         <!-- Bulk bar appears only when a move is possible for everything picked. -->
         <div v-if="selected.length" class="d-flex flex-wrap align-items-center gap-3 mb-3 px-3 py-2 border rounded bg-body-tertiary">
             <span class="small fw-semibold"><span class="num">{{ selected.length }}</span> selected</span>
-            <CButton v-if="bulkTarget" color="primary" size="sm" @click="bulkMove(bulkTarget)">
+            <CButton v-if="canBulkShip" color="primary" size="sm" @click="bulkShip">Send to courier</CButton>
+            <CButton v-if="canBulkPrint" color="secondary" variant="outline" size="sm" @click="bulkPrint">
+                Print {{ selected.length }} AWB{{ selected.length === 1 ? '' : 's' }}
+            </CButton>
+            <CButton v-if="bulkTarget" :color="canBulkShip ? 'secondary' : 'primary'"
+                :variant="canBulkShip ? 'outline' : undefined" size="sm" @click="bulkMove(bulkTarget)">
                 Move to {{ statuses[bulkTarget] }}
             </CButton>
             <span v-else class="small text-body-secondary">Those orders are at different stages — no single move applies.</span>
@@ -223,6 +281,13 @@ const bulkTarget = computed(() => {
 
                     <template #cell:actions="{ row }">
                         <div class="d-flex flex-wrap gap-1 justify-content-end">
+                            <CButton v-if="row.can_ship" size="sm" color="primary" @click="ship(row)">
+                                Send to courier
+                            </CButton>
+                            <CButton v-if="row.can_print" size="sm" color="secondary" variant="outline"
+                                @click="printAwb(row)">
+                                {{ row.reprint ? 'Re-print AWB' : 'Print AWB' }}
+                            </CButton>
                             <CButton
                                 v-for="to in row.transitions"
                                 :key="to"

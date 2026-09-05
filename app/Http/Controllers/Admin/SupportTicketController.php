@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TicketReplied;
 use App\Models\CsTicketReply;
 use App\Models\SupportTicket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -87,8 +89,8 @@ class SupportTicketController extends Controller
 
         $admin = $request->user('admin');
 
-        DB::transaction(function () use ($ticket, $data, $admin) {
-            $ticket->replies()->create([
+        $reply = DB::transaction(function () use ($ticket, $data, $admin) {
+            $reply = $ticket->replies()->create([
                 'user_type' => CsTicketReply::FROM_STAFF,
                 'user_id' => (int) $admin->getKey(),
                 'message' => $data['message'],
@@ -104,8 +106,21 @@ class SupportTicketController extends Controller
 
                 $ticket->update(['status' => $data['status']]);
             }
+
+            return $reply;
         });
 
-        return back()->with('success', 'Reply sent.');
+        // Queued, and only once the reply is committed — a worker must never
+        // pick up a job for a row that is still inside an open transaction.
+        if (filled($ticket->customer_email)) {
+            Mail::to($ticket->customer_email)->queue(new TicketReplied($ticket, $reply));
+        }
+
+        return back()->with(
+            'success',
+            filled($ticket->customer_email)
+                ? 'Reply sent to '.$ticket->customer_email.'.'
+                : 'Reply saved. This ticket has no email address to send it to.',
+        );
     }
 }

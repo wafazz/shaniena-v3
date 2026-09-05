@@ -5,13 +5,14 @@ import StorefrontLayout from '../../Layouts/StorefrontLayout.vue';
 
 const props = defineProps({
     searched: { type: Boolean, default: false },
+    prefill: { type: Object, default: () => ({}) },
     ticket: { type: Object, default: null },
     member: { type: Object, default: null },
 });
 
 const page = usePage();
 const flash = computed(() => page.props.flash ?? {});
-const tab = ref(props.searched || props.ticket ? 'find' : 'new');
+const tab = ref(props.searched || props.ticket || props.prefill?.ticket_no ? 'find' : 'new');
 
 const open = useForm({
     customer_name: props.member?.name ?? '',
@@ -22,7 +23,7 @@ const open = useForm({
     priority: 'medium',
 });
 
-const find = useForm({ ticket_no: '', email: props.member?.email ?? '' });
+const find = useForm({ ticket_no: props.prefill?.ticket_no ?? '', email: props.member?.email ?? '' });
 const reply = useForm({ ticket_no: '', email: '', message: '' });
 </script>
 

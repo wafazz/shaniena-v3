@@ -23,7 +23,7 @@ abstract class TestCase extends BaseTestCase
      * the shop depends on the session surviving between requests — the basket
      * is keyed to the cart token precisely so it does not have to.
      */
-    protected function keep(TestResponse $response): TestResponse
+    public function keep(TestResponse $response): TestResponse
     {
         $carried = [
             HandleStorefrontRequests::CART_COOKIE,

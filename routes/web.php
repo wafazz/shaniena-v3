@@ -3,12 +3,14 @@
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\Auth\LoginController;
 use App\Http\Controllers\Admin\Auth\PasswordResetController;
+use App\Http\Controllers\Admin\AwbPrintController;
 use App\Http\Controllers\Admin\BlogController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CountrySettingController;
 use App\Http\Controllers\Admin\CourierSettingController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LiveFeedController;
 use App\Http\Controllers\Admin\LogoSettingController;
 use App\Http\Controllers\Admin\OrderQueueController;
 use App\Http\Controllers\Admin\OrderSearchController;
@@ -19,6 +21,7 @@ use App\Http\Controllers\Admin\PickupHubController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\SalesReportController;
+use App\Http\Controllers\Admin\ShipmentController;
 use App\Http\Controllers\Admin\ShippingCostController;
 use App\Http\Controllers\Admin\SliderController;
 use App\Http\Controllers\Admin\StaffController;
@@ -34,6 +37,7 @@ use App\Http\Controllers\Shop\ContentController;
 use App\Http\Controllers\Shop\CountryController;
 use App\Http\Controllers\Shop\HomeController;
 use App\Http\Controllers\Shop\OrderTrackingController;
+use App\Http\Controllers\Shop\PaymentController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
 use App\Http\Controllers\Shop\SupportController;
 use App\Services\OrderQueues;
@@ -92,6 +96,12 @@ Route::middleware('auth:web')->group(function () {
     Route::put('account', [AccountController::class, 'update'])->name('shop.account.update');
 });
 
+// --- payment -------------------------------------------------------------
+Route::post('pay/{channel}', [PaymentController::class, 'start'])->name('shop.pay');
+Route::get('pay/{channel}/return', [PaymentController::class, 'return'])->name('shop.pay.return');
+Route::get('order/{order}/thanks', [PaymentController::class, 'thanks'])->name('shop.order.thanks');
+Route::get('order/{order}/failed', [PaymentController::class, 'failed'])->name('shop.order.failed');
+
 // --- support -------------------------------------------------------------
 Route::get('support', [SupportController::class, 'show'])->name('shop.support');
 Route::post('support', [SupportController::class, 'store'])->name('shop.support.store');
@@ -137,6 +147,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('page:dashboard')
             ->name('dashboard');
 
+        Route::get('dashboard/live', LiveFeedController::class)
+            ->middleware('page:dashboard')
+            ->name('dashboard.live');
+
         Route::get('search-order', OrderSearchController::class)
             ->middleware('page:search-order')
             ->name('orders.search');
@@ -158,6 +172,22 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/status', [OrderStatusController::class, 'bulkUpdate'])
             ->middleware('page:new-order')
             ->name('orders.status.bulk');
+
+        Route::post('orders/{order}/ship', [ShipmentController::class, 'store'])
+            ->middleware('page:new-order')
+            ->name('orders.ship');
+
+        Route::post('orders/ship', [ShipmentController::class, 'bulk'])
+            ->middleware('page:new-order')
+            ->name('orders.ship.bulk');
+
+        Route::get('orders/{order}/awb', [AwbPrintController::class, 'show'])
+            ->middleware('page:new-order')
+            ->name('orders.awb');
+
+        Route::post('orders/awb', [AwbPrintController::class, 'bulk'])
+            ->middleware('page:new-order')
+            ->name('orders.awb.bulk');
 
         Route::get('stock-control', [StockControlController::class, 'index'])
             ->middleware('page:stock-control')
@@ -295,3 +325,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Gateway callbacks
+|--------------------------------------------------------------------------
+|
+| Server-to-server only, so there is no session and no CSRF token to send —
+| the exemption is registered in bootstrap/app.php and covers these paths and
+| nothing else. Each gateway verifies its own signature before the payload is
+| trusted, and confirming an order happens here, never on the browser return.
+|
+*/
+
+Route::post('payment/callback/{channel}', [PaymentController::class, 'callback'])
+    ->name('shop.pay.callback');

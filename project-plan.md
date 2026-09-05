@@ -107,7 +107,7 @@
 - [x] **4.8** Orders: 7 routes on one screen (6 statuses + Database Order), filtering, server-side paging, per-row and bulk stage moves. 10 Pest tests. Screenshotted at 1280 and 390.
       **Deferred to Phase 6:** *Send to Courier*, *Print AWB* and *Re-Print AWB* call the DHL/J&T/NinjaVan APIs, which are Phase 6.8–6.9. Order detail modal and customer edit still to do.
 - [x] **4.9** Order search — search-first across every status, server-paged, resting state before any query. The source's checkboxes are gone: they were wired to a bulk bar that does not exist on that page, so it threw four null dereferences on load (**Q2 still open**). 5 Pest tests. *Export still to do.*
-- [ ] **4.10** Courier submission (DHL / J&T / NinjaVan), AWB print, bulk print — **blocked on Phase 6.8–6.9**, which owns those gateway services.
+- [x] **4.10** Courier submission (DHL / J&T / NinjaVan), AWB print, bulk print — *Send to courier* and *Print / Re-print AWB* are wired into the order queue, single and bulk. A bulk booking books each order on its own, so one courier refusal cannot take the batch down or attach an AWB to the wrong parcel. Bulk print POSTs its ids; the source put them in `?id=1,2,3` and interpolated that straight into SQL.
 - [x] **4.11** HQ Staff + role-access matrix — server-side password rules (was browser-only), bcrypt on create (the source added a new SHA-256 hash per account), HQ/Owner role not assignable, self-edit blocked, permission toggles labelled rather than colour-only, every change logged. 8 Pest tests.
 - [~] **4.12** Settings: store settings (allowlisted keys), shipping cost — postage and COD per country + zone. Plus the storefront copy pages (Policy, Terms, About Us) and Logo Setting. *Announcements not built: the `announcement` table has no DDL anywhere in the source.*
 - [x] **4.13** Payment settings: SenangPay, Bayarcash, Stripe on one screen. **Secrets are never sent to the browser** — only whether each is set and a 4-char tail; a blank field keeps the stored value. The source rendered live secret keys into `value="..."`. Courier credentials (DHL, J&T) get the same treatment.
@@ -147,18 +147,26 @@
 
 ## Phase 6: Payments & Shipping Integrations
 
-- [ ] **6.1** Port `SenangPayGateway` → `app/Services/Payments/SenangPayGateway` (preserve SHA256 hash logic exactly)
-- [ ] **6.2** Port `BayarcashGateway` → `app/Services/Payments/BayarcashGateway` (5-field intent checksum, 13-field callback checksum)
-- [ ] **6.3** COD flow + COD charge calculation
+> **The shared machinery is in place.** `App\Contracts\PaymentGateway` +
+> `PaymentHandoff` / `PaymentResult`, a `PaymentGateways` registry, and
+> `App\Services\Storefront\PlaceOrder`, which prices the basket from the catalogue at
+> the moment the order is written. **No gateway ever receives an amount from the caller.**
+> Confirmation is idempotent, because every gateway redelivers callbacks.
+
+- [x] **6.1** `SenangPayGateway` — both hashes reproduced byte-for-byte from `lib/gateway/SenangPayGateway.php`: `hmac_sha256(secret . detail . amount . order_id, secret)` for the request and `hmac_sha256(secret . status_id . order_id . transaction_id . msg, secret)` for the callback. No separator; each field `urldecode()`d; the secret appears twice, prefixed on the message and as the HMAC key. Pending (status 2) is not a payment.
+- [x] **6.2** `BayarcashGateway` — 5-field intent checksum and 13-field callback checksum, both `hmac_sha256(implode('|', values), secret)`.
+      **The load-bearing detail:** the source declares the callback payload in Bayarcash's documented order and then runs `ksort()`, so the bytes actually hashed are **alphabetical by key**. Reproducing the documented order would make every callback fail. Tested against the exact byte string.
+      Ported from `lib/gateway/BayarcashGateway.php`, **not** `model/Bayarcash.php` — that one ksorts whatever fields the caller happened to send, so an attacker choosing which fields to post chooses the payload. It is unused, and was left behind.
+- [x] **6.3** COD flow + charge calculation — placed as a live order, fee from `cod_charges` via `Basket`. The source revealed the fee row with JavaScript and rewrote the total client-side. 10 Pest tests.
 - [ ] **6.4** Stripe integration
-- [ ] **6.5** Payment channel toggles (`senangpay_enabled`, `bayarcash_enabled`, `cod_enabled`)
-- [ ] **6.6** Callback + return-URL routes with signature verification; CSRF exemption only on callbacks
-- [ ] **6.7** Thank-you / failed pages (shared across channels)
-- [ ] **6.8** Port `NinjaVanGateway` + token cron → Laravel Scheduler
-- [ ] **6.9** DHL + J&T shipping services
-- [ ] **6.10** Mail: PHPMailer/MailerSend → Laravel Mailables (order confirmation, ticket replies)
-- [ ] **6.11** Queued jobs: `CheckAbandonJob`, `LiveOrdersJob`, `LiveUpdaterJob`
-- [ ] **6.12** QR/barcode consolidation → `endroid/qr-code` + picqer barcode; PDF via `barryvdh/laravel-dompdf`
+- [x] **6.5** Payment channel toggles — a channel is offered only if it is switched on **and** configured. The source rendered a SenangPay button whose settings row did not exist, and computed `$senangpayEnabled` without ever using it.
+- [x] **6.6** Callback + return routes — CSRF exempt for `payment/callback/*` **only**, with each gateway verifying its own signature. A callback confirms an order; the browser return never does, because it can be forged or simply never arrive. An unverified callback is refused with 400; the source answered 200 `OK` and ran an UPDATE on order id 0.
+- [x] **6.7** Thank-you / failed pages, shared across channels, plus an auto-submitting handoff page for gateways that need a POST (it still works with JavaScript off).
+- [x] **6.8** `NinjaVanGateway` — OAuth cached per mode via `updateOrCreate` (the source INSERTed a row on every refresh and never pruned). No token cron: the token is renewed lazily with a five-minute margin the moment a booking needs it, so there is no window where a cron has not run yet.
+- [x] **6.9** `DhlGateway` + `JtExpressGateway` behind a `ShippingGateway` contract, dispatched by `Couriers` (case-insensitive — the source wrote back `J&T EXPRESS` but dispatched on `J&T Express`). `BookShipment` is idempotent and books one order at a time; the source posted a batch and matched AWBs back **by array position** across differently-sorted arrays. DHL fixes: production read the sandbox token, expiry was never checked, credentials rode in the query string, weight was hardcoded to 10g and COD was never declared.
+- [x] **6.10** Mail — `OrderPlaced` and `TicketReplied` Mailables, both queued so a slow mail server cannot hold up a payment callback or an agent's screen. Replaces PHPMailer with **hardcoded Brevo SMTP credentials in the checkout controller**. The source's admin reply screen only wrote the row: nothing was ever emailed, so "Reply sent." was untrue.
+- [x] **6.11** Queued jobs on the Scheduler: `ExpireAbandonedCarts` (one indexed chunked UPDATE, not a row-by-row loop that echoed HTML), `RefreshVisitorCounts` (to the cache — the source wrote a **0666 JSON file inside the web root**), `SyncDeliveryStatus` (`delivery-status.php`: dropped its `last_processed.json` cursor, which skipped any order shipped after the cursor passed its id, and restored TLS verification). `live-orders.php` — an **SSE loop holding a PHP worker per signed-in admin, eight uncached queries every two seconds** — is now a 30s poll of `GET /admin/dashboard/live`, paused while the tab is hidden.
+- [x] **6.12** AWB labels: `endroid/qr-code` + `picqer/php-barcode-generator` (CODE 128) rendered through `barryvdh/laravel-dompdf`, all in memory — the source wrote a PNG per parcel into a web-readable `temp/` and never cleaned up. Paper is configurable (`AWB_LABEL_PAPER`: A5 sheets or 4x6in thermal). `awb_printed` is now one row per order, written **after** the PDF renders; the source wrote one blob row (`[12],[13]`) before rendering, so failed prints still counted. `AwbPrint::forOrder()` still reads the legacy blob shape.
 
 ## Phase 7: Security Hardening *(Gate 6 — Argus/Cipher/Aegis)*
 
@@ -292,6 +300,27 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 63 | SSR resolves only `Pages/Shop/**` | SSR exists for SEO and first paint on shop pages. The console is behind a login and indexed by nobody, so pulling CoreUI and every admin page into the SSR bundle would only slow the server. |
 | 64 | `public/hot` is a build artefact, never committed | A stale one silently disabled SSR *and* made `@vite` emit source paths instead of hashed build URLs — which had a test passing for the wrong reason. |
 | 65 | Canonical URLs come from the server, absolute and query-free | A filtered listing is the same page as the unfiltered one, and a client-derived canonical is wrong under SSR. |
+| 66 | `order_details.order_id` holds `customer_orders.id` | It is a bigint. The Phase 3 model documented it as the session id and hung a `hasMany` off it, which the column type does not permit — found by writing the first real order. |
+| 67 | `order_details.hash_code` is 64 random hex characters | The source used `sha256(id . '_' . name . '_' . dateNow)` — derived entirely from guessable inputs, and the only thing protecting the order page. |
+| 68 | Order confirmation happens in the callback, never on the browser return | A return can be forged, arrive twice, or never arrive at all. `PlaceOrder::confirm()` is idempotent because every gateway redelivers. |
+| 69 | `to_myr_rate` records the country's rate at the time of the order | The source read `list_country.rate` and then always wrote 1, discarding it. |
+| 70 | Bayarcash ported from `lib/gateway/`, not `model/Bayarcash.php` | The two have different, incompatible checksums. `model/Bayarcash.php::verifyCallbackChecksum` unsets `checksum` and hashes whatever fields remain, so an attacker choosing which fields to post chooses the payload. It is dead code and stays that way. |
+| 71 | Payment channel is never taken from the request | The source wrote `$_POST['payment_type']` straight into `payment_channel` on SenangPay success — and that field is not covered by the verified hash. |
+| 72 | Bayarcash channel validated against the offered list | The source cast an unvalidated `?channel=` to int and put it in the checksum. |
+| 73 | Nothing about a payment is written to the log | `BayarcashGateway` logged the full checksum payload, the resulting checksum and the secret's first four characters; the controller logged entire callback payloads. |
+| 74 | Shipments are booked one order at a time | The source posted a batch to J&T and matched returned AWBs back **by array position**, walking a sorted id list against rows returned in SELECT order. One mismatch puts a customer's AWB on someone else's parcel. |
+| 75 | `Couriers::for()` matches case-insensitively | The source dispatched on `'J&T Express'` but wrote `'J&T EXPRESS'` back to the order, so re-dispatching an already-shipped order fell into the "no courier assigned" branch. |
+| 76 | `BookShipment` is idempotent on `awb_number` | The source had no guard: clicking *Send to Courier* twice booked two parcels for one order and paid for both. |
+| 77 | No token cron for NinjaVan or DHL | Tokens are renewed lazily with a five-minute margin at the moment a booking needs one. A cron leaves a window where it has not run yet; this cannot. DHL's stored `expired_at` was never checked at all, so an expired token was reused until someone re-saved the settings form by hand. |
+| 78 | Courier credentials moved out of the query string | DHL's OAuth call appended `clientId` and `password` to the URL, where they land in every proxy, CDN and server access log along the path. |
+| 79 | AWB labels are generated in memory | The source wrote a QR PNG per parcel into `temp/` under the web root and never deleted one, leaving every shipment's code publicly fetchable. |
+| 80 | `awb_printed` is one row per order, written after the render | The source wrote a single row holding `[12],[13],[14]` **before** generating the PDF, so a failed print still counted and the column could not be queried. `AwbPrint::forOrder()` reads both shapes so imported history still answers. |
+| 81 | Bulk print takes its ids in the body | `awb-jt.php?id=1,2,3` interpolated `$_GET['id']` straight into `SELECT * FROM dhl_bulk_print WHERE id='...'`. |
+| 82 | The live dashboard polls; it does not stream | `live-orders.php` was an SSE script with an infinite loop that held a PHP-FPM worker open per signed-in admin and ran eight uncached queries every two seconds — against a connection whose root password was written into the file. It is a 30-second fetch of `/admin/dashboard/live` now, paused while the tab is hidden. |
+| 83 | Visitor counts live in the cache | `live-updater.php` wrote them to `live_visitors.json` inside the document root and `chmod`'d it 0666 — world-readable traffic figures in a world-writable file. |
+| 84 | Delivery sync has no cursor file | `last_processed.json` only moved forward, so an order shipped after the cursor passed its id was skipped until the file happened to reset to 0. Status *is* the cursor now: a completed order is no longer in delivery, so it is never polled again. |
+| 85 | TLS verification restored on tracking calls | `delivery-status.php` set `CURLOPT_SSL_VERIFYPEER = false`, making every tracking call interceptable — and it carried a hardcoded production signing key. |
+| 86 | The ticket reply email link carries the ticket number only | The address the ticket was raised with would otherwise sit in browser history and referrer logs. The support page prefills the number and asks for the email, which is what actually authorises the lookup. |
 
 ## Verification Log
 
@@ -370,3 +399,15 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 2026-09-05 | SSR renders a product page for a crawler | markup + single title + absolute canonical + og tags ✓ |
 | 2026-09-05 | Storefront serves only its own bundle | admin chunk absent from the HTML ✓ |
 | 2026-09-05 | Pest suite after Phase 5 | 217 passed, 953 assertions ✓ |
+| 2026-09-05 | COD order priced entirely server-side | 2×59.90 + 6.50 postage + 8.00 COD = 134.30 ✓ |
+| 2026-09-05 | Order reference hash is unguessable | 64 random hex, not sha256 of id+name+time ✓ |
+| 2026-09-05 | Paying issues a fresh cart token | a confirmed basket cannot be reused ✓ |
+| 2026-09-05 | A switched-off channel cannot be paid to | 404, no order created ✓ |
+| 2026-09-05 | Gateway callbacks skip CSRF, nothing else does | `payment/callback/*` reachable without a token ✓ |
+| 2026-09-05 | Pest suite after the Phase 6 core | 227 passed, 974 assertions ✓ |
+| 2026-09-05 | SenangPay request + callback hashes | match the source's construction byte-for-byte ✓ |
+| 2026-09-05 | Bayarcash 5-field and 13-field checksums | match the ksort-ed byte string ✓ |
+| 2026-09-05 | Tampered checksum, altered amount, missing checksum | all refused ✓ |
+| 2026-09-05 | Replayed callback confirms once | one order_details row, one confirmation ✓ |
+| 2026-09-05 | A channel switched on but unconfigured is not offered | ✓ |
+| 2026-09-05 | Pest suite after 6.1 + 6.2 | 241 passed, 1002 assertions ✓ |

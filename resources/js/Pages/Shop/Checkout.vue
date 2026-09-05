@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { Link, useForm } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import Seo from '../../Storefront/Seo.vue';
 import StorefrontLayout from '../../Layouts/StorefrontLayout.vue';
 
@@ -29,12 +29,34 @@ const form = useForm({
     remember: false,
 });
 
-const method = ref('normal');
+const CHANNELS = [
+    { value: 'cod', label: 'Cash on delivery' },
+    { value: 'senangpay', label: 'Online banking & e-wallet (SenangPay)' },
+    { value: 'bayarcash', label: 'FPX, DuitNow & BNPL (Bayarcash)' },
+    { value: 'stripe', label: 'Card (Stripe)' },
+];
+
+const method = ref('');
+const paying = ref(false);
+
+function pay() {
+    if (!method.value) return;
+
+    paying.value = true;
+    // The amount is not sent: the server prices the basket again when it
+    // creates the order.
+    router.post(`/pay/${method.value}`, {}, { onFinish: () => { paying.value = false; } });
+}
 
 // The figures below always come from the server. Choosing COD re-asks rather
 // than adding a fee in the browser, because the browser's number is not the
 // number that gets charged.
 const codSelected = computed(() => method.value === 'cod');
+
+// Re-price when the customer picks COD, so the fee shown is the server's.
+watch(codSelected, (isCod) => {
+    router.reload({ data: { cod: isCod ? 1 : undefined }, only: ['summary'] });
+});
 const payableNow = computed(() => props.summary.total);
 </script>
 
@@ -180,29 +202,20 @@ const payableNow = computed(() => props.summary.total);
                             <div v-if="summary.postage_known" class="mt-4">
                                 <h6 class="mb-2">How would you like to pay?</h6>
 
-                                <label v-if="payments.cod" class="d-flex align-items-center gap-2 py-1">
-                                    <input v-model="method" type="radio" value="cod">
-                                    <span>Cash on delivery</span>
-                                </label>
-                                <label v-if="payments.senangpay" class="d-flex align-items-center gap-2 py-1">
-                                    <input v-model="method" type="radio" value="senangpay">
-                                    <span>Online banking &amp; e-wallet (SenangPay)</span>
-                                </label>
-                                <label v-if="payments.bayarcash" class="d-flex align-items-center gap-2 py-1">
-                                    <input v-model="method" type="radio" value="bayarcash">
-                                    <span>FPX, DuitNow &amp; BNPL (Bayarcash)</span>
-                                </label>
-                                <label v-if="payments.stripe" class="d-flex align-items-center gap-2 py-1">
-                                    <input v-model="method" type="radio" value="stripe">
-                                    <span>Card (Stripe)</span>
+                                <label v-for="option in CHANNELS.filter((c) => payments[c.value])" :key="option.value"
+                                    class="d-flex align-items-center gap-2 py-1">
+                                    <input v-model="method" type="radio" :value="option.value">
+                                    <span>{{ option.label }}</span>
                                 </label>
 
-                                <button type="button" class="site-btn w-100 mt-3" disabled>
-                                    Payment arrives with Phase 6
-                                </button>
-                                <p class="small text-muted mt-2 mb-0">
-                                    The gateways are the next phase of the migration. Your address and postage are saved.
+                                <p v-if="!Object.values(payments).some(Boolean)" class="small text-muted mb-0">
+                                    No payment method is switched on yet. Please get in touch and we'll take the order by hand.
                                 </p>
+
+                                <button v-else type="button" class="site-btn w-100 mt-3"
+                                    :disabled="!method || paying" @click="pay">
+                                    {{ paying ? 'Just a moment…' : `Pay ${summary.currency} ${money(payableNow)}` }}
+                                </button>
                             </div>
                             <p v-else class="small text-muted mt-3 mb-0">
                                 Save your delivery details to see postage and payment options.

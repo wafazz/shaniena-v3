@@ -25,7 +25,10 @@ class SupportController extends Controller
     public function show(Request $request): Response
     {
         $ticket = null;
-        $searched = $request->filled('ticket_no') || $request->filled('email');
+
+        // Both halves, or it is not a lookup. A ticket number on its own is a
+        // link from an email: prefill it and let them supply the address.
+        $searched = $request->filled('ticket_no') && $request->filled('email');
 
         if ($searched) {
             $data = $request->validate([
@@ -42,6 +45,7 @@ class SupportController extends Controller
 
         return Inertia::render('Shop/Support', [
             'searched' => $searched,
+            'prefill' => ['ticket_no' => (string) $request->query('ticket_no', '')],
             'member' => $request->user('web')?->only(['name', 'email']),
             'ticket' => $ticket ? [
                 'ticket_no' => $ticket->ticket_no,

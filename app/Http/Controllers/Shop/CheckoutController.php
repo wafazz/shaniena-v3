@@ -7,8 +7,8 @@ use App\Http\Middleware\HandleStorefrontRequests;
 use App\Models\ListCountry;
 use App\Models\OrderTempData;
 use App\Models\StateSetting;
+use App\Services\Payments\PaymentGateways;
 use App\Services\Storefront\Basket;
-use App\Services\StoreSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -32,7 +32,7 @@ class CheckoutController extends Controller
 
     public function __construct(
         private Basket $basket,
-        private StoreSettings $settings,
+        private PaymentGateways $gateways,
     ) {}
 
     public function show(Request $request): Response|RedirectResponse
@@ -48,17 +48,15 @@ class CheckoutController extends Controller
         $state = $draft->state ?? null;
 
         return Inertia::render('Shop/Checkout', [
-            'summary' => $this->basket->summary($sessionId, $country, $state),
+            'summary' => $this->basket->summary($sessionId, $country, $state, $request->boolean('cod')),
             'address' => $this->rememberedAddress($request, $draft),
             'states' => StateSetting::query()
                 ->where('country_id', $country->id)->orderBy('name')->pluck('name')->all(),
             'country' => ['id' => $country->id, 'name' => $country->name, 'sign' => $country->sign],
-            'payments' => [
-                'cod' => $this->settings->enabled('cod_enabled'),
-                'senangpay' => $this->settings->enabled('senangpay_enabled'),
-                'bayarcash' => $this->settings->enabled('bayarcash_enabled'),
-                'stripe' => $this->settings->enabled('stripe_enabled'),
-            ],
+            // A channel is offered only if it is switched on AND configured;
+            // the source rendered a SenangPay button whose settings row did
+            // not exist, and computed $senangpayEnabled without ever using it.
+            'payments' => $this->gateways->availability(),
         ]);
     }
 

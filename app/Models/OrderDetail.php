@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderDetail extends Model
 {
@@ -18,10 +18,16 @@ class OrderDetail extends Model
         return ['created_at' => 'datetime'];
     }
 
-    /** Order rows share the session_id stored here as order_id. */
-    public function orders(): HasMany
+    /**
+     * The order this hash belongs to.
+     *
+     * `order_id` is a bigint holding customer_orders.id. The earlier model
+     * documented it as the session id and hung a hasMany off it, which the
+     * column type does not allow.
+     */
+    public function order(): BelongsTo
     {
-        return $this->hasMany(Order::class, 'session_id', 'order_id');
+        return $this->belongsTo(Order::class, 'order_id');
     }
 
     public function getRouteKeyName(): string

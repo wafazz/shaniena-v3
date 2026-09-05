@@ -53,6 +53,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
 
+            // Needed by the few places that POST a real form rather than an
+            // Inertia visit — streaming a PDF back, for one.
+            'csrf_token' => $request->session()->token(),
+
             'auth' => [
                 'admin' => $admin instanceof MemberHq ? [
                     'id' => $admin->id,

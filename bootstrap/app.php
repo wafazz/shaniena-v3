@@ -30,6 +30,13 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleStorefrontRequests::COUNTRY_COOKIE,
         ]);
 
+        // CSRF is exempt for gateway callbacks ONLY. They are server-to-server
+        // POSTs with no session, and each one is authenticated by its own
+        // signature instead.
+        $middleware->validateCsrfTokens(except: [
+            'payment/callback/*',
+        ]);
+
         $middleware->alias([
             'page' => EnsurePageAccess::class,
         ]);
