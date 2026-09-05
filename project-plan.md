@@ -47,21 +47,21 @@
 
 ## Phase 2: Database — Schema & Data
 
-- [ ] **2.1** Extract full schema from `base_ecom.sql` (59 tables) into a normalised inventory
-- [ ] **2.2** Write Laravel migrations for **core commerce**: `products`, `product_variants`, `product_images`, `product_attributes`, `product_attribute_values`, `variant_attribute_values`, `categories`, `brands`, `stock_control`
-- [ ] **2.3** Migrations for **orders**: `customer_orders`, `order_details`, `order_temp_data`, `cart`, `cart_lock`, `cart_lock_senangpay`
-- [ ] **2.4** Migrations for **people**: `member_hq`, `members`, `role_access`, `role_access_button`, `user_activities`, `activities`
-- [ ] **2.5** Migrations for **geo & pricing**: `list_country`, `list_country_product_price`, `postage_cost`, `state`, `state_my`, `postcode_my`, `all_country`
-- [ ] **2.6** Migrations for **shipping**: `dhl`, `dhl_ship`, `dhl_token`, `dhl_bulk_print`, `jt_setting`, `jt_code`, `awb_printed`, `pickup_hubs`, `pickup_hub_staff`
-- [ ] **2.7** Migrations for **payments**: `senangpay_api`, `stripe_setting`, `billplz`, bayarcash tables
-- [ ] **2.8** Migrations for **CMS & support**: `news_blog`, `blog_views`, `about_us`, `policy`, `terms_conditions`, `image_setting`, `sliders`, `store_settings`, `cs_*` (7 tables)
-- [ ] **2.9** Migrations for **analytics**: `visitors`, `online_visitor_unique`, `online_visitor_return`
-- [ ] **2.10** Add foreign keys + indexes (source has almost none — fix schema debt here)
-- [ ] **2.11** Drop dead tables (`sbtest1`, `all`, duplicate `dhl_token_test`) — log each removal
-- [ ] **2.12** Datetime columns as `datetime` (never `timestamp`) per project convention
-- [ ] **2.13** Build data-import command `php artisan shaniena:import` from source DB → new schema
-- [ ] **2.14** Run import; row-count reconciliation report old vs new for every table
-- [ ] **2.15** Seeders for lookup/reference data (countries, states, postcodes)
+- [x] **2.1** Extract full schema from `base_ecom.sql` (59 tables) into a normalised inventory
+- [x] **2.2** Write Laravel migrations for **core commerce**: `products`, `product_variants`, `product_images`, `product_attributes`, `product_attribute_values`, `variant_attribute_values`, `categories`, `brands`, `stock_control`
+- [x] **2.3** Migrations for **orders**: `customer_orders`, `order_details`, `order_temp_data`, `cart`, `cart_lock`, `cart_lock_senangpay`
+- [x] **2.4** Migrations for **people**: `member_hq`, `members`, `role_access`, `role_access_button`, `user_activities`, `activities`
+- [x] **2.5** Migrations for **geo & pricing**: `list_country`, `list_country_product_price`, `postage_cost`, `state`, `state_my`, `postcode_my`, `all_country`
+- [x] **2.6** Migrations for **shipping**: `dhl`, `dhl_ship`, `dhl_token`, `dhl_bulk_print`, `jt_setting`, `jt_code`, `awb_printed`, `pickup_hubs`, `pickup_hub_staff`
+- [x] **2.7** Migrations for **payments**: `senangpay_api`, `stripe_setting`, `billplz`, bayarcash tables
+- [x] **2.8** Migrations for **CMS & support**: `news_blog`, `blog_views`, `about_us`, `policy`, `terms_conditions`, `image_setting`, `sliders`, `store_settings`, `cs_*` (7 tables)
+- [x] **2.9** Migrations for **analytics**: `visitors`, `online_visitor_unique`, `online_visitor_return`
+- [ ] **2.10** Add foreign keys + indexes — *deferred until after data import; 11 source FKs preserved. Adding new constraints before the data lands would fail on orphaned rows.*
+- [x] **2.11** Drop dead tables (`sbtest1`, `all`, duplicate `dhl_token_test`) — log each removal
+- [x] **2.12** Datetime columns as `datetime` (never `timestamp`) per project convention
+- [ ] **2.13** *(deferred by decision)* Build data-import command `php artisan shaniena:import` from source DB → new schema
+- [ ] **2.14** *(deferred by decision)* Run import; row-count reconciliation report old vs new for every table
+- [ ] **2.15** *(deferred by decision)* Seeders for lookup/reference data (countries, states, postcodes)
 
 ## Phase 3: Backend Core — Models & Auth
 
@@ -197,3 +197,10 @@
 | 2026-09-05 | Redis session + cache | write/read verified ✓ |
 | 2026-09-05 | Inertia payload | `component: Welcome`, props delivered, Ziggy present ✓ |
 | 2026-09-05 | Inertia SSR | full Bootstrap/CoreUI HTML server-rendered ✓ |
+| 2026-09-05 | Dump import into `shaniena_src` | 286 statements, 0 failures, 59 tables ✓ |
+| 2026-09-05 | `migrate:fresh` (71 migrations) | all ran clean ✓ |
+| 2026-09-05 | Schema parity vs source | 57 tables column-compared, **0 mismatches** ✓ |
+| 6 | Import dump into scratch DB `shaniena_src`, generate migrations from metadata | Far more reliable than parsing 59 `CREATE TABLE` blocks by hand. Needed `utf8mb4_0900_ai_ci` → `utf8mb4_unicode_ci` (MySQL 8 dump, MariaDB 10.4 local). |
+| 7 | `timestamp` → `datetime`, `softDeletes()` → explicit `datetime` | Project convention: `datetime` avoids MySQL timezone conversion. 59 + 17 columns converted. |
+| 8 | Zero-date defaults → `nullable()` | Source had `DEFAULT '0000-00-00 00:00:00'` on 8 columns; MySQL strict mode rejects it. |
+| 9 | Laravel `users` table not created | App authenticates against migrated `member_hq` / `members`. Kept `password_reset_tokens` + `sessions`. |
