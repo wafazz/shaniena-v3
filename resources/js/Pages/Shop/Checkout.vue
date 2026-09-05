@@ -85,75 +85,95 @@ const payableNow = computed(() => props.summary.total);
                     <div class="col-lg-7">
                         <h5 class="mb-3">Delivery details</h5>
 
-                        <form @submit.prevent="form.post('/checkout/address', { preserveScroll: true })">
+                        <!-- checkout__form / checkout__form__input are the
+                             template's own class names. The markup said
+                             checkout__input, so the whole checkout stylesheet
+                             was dead and every field rendered as a bare
+                             browser box. Labels are real <label for> now, with
+                             ids and autocomplete tokens, so a screen reader
+                             announces each field and a phone can fill it. -->
+                        <form class="checkout__form"
+                            @submit.prevent="form.post('/checkout/address', { preserveScroll: true })">
                             <div class="row">
-                                <div class="col-md-6 checkout__input">
-                                    <p>First name<span>*</span></p>
-                                    <input v-model="form.first_name" type="text" required>
+                                <div class="col-md-6 checkout__form__input">
+                                    <label for="first_name">First name<span>*</span></label>
+                                    <input id="first_name" v-model="form.first_name" name="given-name"
+                                        type="text" autocomplete="given-name" required>
                                     <small v-if="form.errors.first_name" class="text-danger">{{ form.errors.first_name }}</small>
                                 </div>
-                                <div class="col-md-6 checkout__input">
-                                    <p>Last name<span>*</span></p>
-                                    <input v-model="form.last_name" type="text" required>
+                                <div class="col-md-6 checkout__form__input">
+                                    <label for="last_name">Last name<span>*</span></label>
+                                    <input id="last_name" v-model="form.last_name" name="family-name"
+                                        type="text" autocomplete="family-name" required>
                                 </div>
                             </div>
 
-                            <div class="checkout__input">
-                                <p>Country<span>*</span></p>
-                                <input type="text" :value="country.name" disabled>
+                            <div class="checkout__form__input">
+                                <label for="country">Country<span>*</span></label>
+                                <input id="country" type="text" :value="country.name" disabled>
                             </div>
 
-                            <div class="checkout__input">
-                                <p>Address<span>*</span></p>
-                                <input v-model="form.address_1" type="text" placeholder="Street address" required>
-                                <input v-model="form.address_2" type="text" class="mt-2" placeholder="Apartment, suite, unit (optional)">
+                            <div class="checkout__form__input">
+                                <label for="address_1">Address<span>*</span></label>
+                                <input id="address_1" v-model="form.address_1" name="address-line1" type="text"
+                                    autocomplete="address-line1" placeholder="Street address" required>
+                                <input id="address_2" v-model="form.address_2" name="address-line2" type="text"
+                                    autocomplete="address-line2" aria-label="Address line 2"
+                                    placeholder="Apartment, suite, unit (optional)">
                                 <small v-if="form.errors.address_1" class="text-danger">{{ form.errors.address_1 }}</small>
                             </div>
 
                             <div class="row">
-                                <div class="col-md-4 checkout__input">
-                                    <p>Postcode<span>*</span></p>
-                                    <input v-model="form.postcode" type="text" required>
+                                <div class="col-md-4 checkout__form__input">
+                                    <label for="postcode">Postcode<span>*</span></label>
+                                    <input id="postcode" v-model="form.postcode" name="postal-code" type="text"
+                                        inputmode="numeric" autocomplete="postal-code" required>
                                 </div>
-                                <div class="col-md-4 checkout__input">
-                                    <p>Town / City<span>*</span></p>
-                                    <input v-model="form.city" type="text" required>
+                                <div class="col-md-4 checkout__form__input">
+                                    <label for="city">Town / City<span>*</span></label>
+                                    <input id="city" v-model="form.city" name="address-level2" type="text"
+                                        autocomplete="address-level2" required>
                                 </div>
-                                <div class="col-md-4 checkout__input">
-                                    <p>State<span>*</span></p>
-                                    <select v-if="states.length" v-model="form.state" class="form-select" required>
+                                <div class="col-md-4 checkout__form__input">
+                                    <label for="state">State<span>*</span></label>
+                                    <select v-if="states.length" id="state" v-model="form.state" name="address-level1"
+                                        autocomplete="address-level1" required>
                                         <option value="">Select state</option>
                                         <option v-for="state in states" :key="state" :value="state">{{ state }}</option>
                                     </select>
-                                    <input v-else v-model="form.state" type="text" required>
+                                    <input v-else id="state" v-model="form.state" name="address-level1" type="text"
+                                        autocomplete="address-level1" required>
                                     <small v-if="form.errors.state" class="text-danger">{{ form.errors.state }}</small>
                                 </div>
                             </div>
 
                             <div class="row">
-                                <div class="col-md-6 checkout__input">
-                                    <p>Phone<span>*</span></p>
-                                    <input v-model="form.phone" type="tel" required>
+                                <div class="col-md-6 checkout__form__input">
+                                    <label for="phone">Phone<span>*</span></label>
+                                    <input id="phone" v-model="form.phone" name="tel" type="tel"
+                                        inputmode="tel" autocomplete="tel" required>
                                 </div>
-                                <div class="col-md-6 checkout__input">
-                                    <p>Email<span>*</span></p>
-                                    <input v-model="form.email" type="email" required>
+                                <div class="col-md-6 checkout__form__input">
+                                    <label for="email">Email<span>*</span></label>
+                                    <input id="email" v-model="form.email" name="email" type="email"
+                                        inputmode="email" autocomplete="email" required>
                                     <small v-if="form.errors.email" class="text-danger">{{ form.errors.email }}</small>
                                 </div>
                             </div>
 
-                            <div class="checkout__input">
-                                <p>Courier<span>*</span></p>
-                                <select v-model="form.courier_service" class="form-select" required>
+                            <div class="checkout__form__input">
+                                <label for="courier_service">Courier<span>*</span></label>
+                                <select id="courier_service" v-model="form.courier_service" name="courier_service" required>
                                     <option>J&amp;T Express</option>
                                     <option>NinjaVan</option>
                                     <option>DHL eCommerce</option>
                                 </select>
                             </div>
 
-                            <div class="checkout__input">
-                                <p>Order notes</p>
-                                <input v-model="form.remark" type="text" placeholder="Anything we should know about delivery">
+                            <div class="checkout__form__input">
+                                <label for="remark">Order notes</label>
+                                <input id="remark" v-model="form.remark" name="remark" type="text"
+                                    placeholder="Anything we should know about delivery">
                             </div>
 
                             <label class="d-flex align-items-center gap-2 mb-3">

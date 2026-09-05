@@ -2,46 +2,16 @@
 
 use App\Models\Activity;
 use App\Models\Cart;
-use App\Models\MemberHq;
 use App\Models\Order;
 use App\Models\PostcodeMy;
 use App\Models\Product;
-use App\Models\RoleAccess;
 use App\Models\StateMy;
-use App\Services\PageAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function detailAdmin(string ...$slugs): MemberHq
-{
-    $user = MemberHq::create([
-        'email' => 'd'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Detail',
-        'l_name' => 'Operator',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_ADMIN,
-        'status' => MemberHq::STATUS_ACTIVE,
-    ]);
-
-    foreach ($slugs as $i => $slug) {
-        RoleAccess::create([
-            'page_url' => $slug,
-            'name' => $slug,
-            'allowed_user' => '['.$user->id.']',
-            'sort' => $i,
-        ]);
-    }
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
-
 it('returns one order in full', function () {
-    $admin = detailAdmin('new-order');
+    $admin = adminWith(['new-order']);
 
     $order = Order::factory()->create([
         'customer_name' => 'Siti',
@@ -71,7 +41,7 @@ it('returns one order in full', function () {
 });
 
 it('never sends the order hash to the browser', function () {
-    $admin = detailAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->create();
 
     $order->detail()->create([
@@ -88,7 +58,7 @@ it('never sends the order hash to the browser', function () {
 });
 
 it('lets staff correct a delivery address', function () {
-    $admin = detailAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->create(['city' => 'Klang', 'postcode' => '41000', 'awb_number' => '']);
 
     $this->actingAs($admin, 'admin')
@@ -118,7 +88,7 @@ it('lets staff correct a delivery address', function () {
 });
 
 it('warns when the address is edited after the courier has it', function () {
-    $admin = detailAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->withAwb('630000888777')->create(['city' => 'Klang']);
 
     $this->actingAs($admin, 'admin')
@@ -143,7 +113,7 @@ it('warns when the address is edited after the courier has it', function () {
 });
 
 it('says nothing changed rather than logging a no-op edit', function () {
-    $admin = detailAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->create(['address_2' => '', 'remark_comment' => '']);
 
     $this->actingAs($admin, 'admin')
@@ -164,7 +134,7 @@ it('says nothing changed rather than logging a no-op edit', function () {
 });
 
 it('rejects an address edit that would not deliver', function () {
-    $admin = detailAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->create();
 
     $this->actingAs($admin, 'admin')
@@ -181,7 +151,7 @@ it('rejects an address edit that would not deliver', function () {
 });
 
 it('fills the town and state from a postcode', function () {
-    $admin = detailAdmin('new-order');
+    $admin = adminWith(['new-order']);
 
     StateMy::create(['state_code' => 'SGR', 'state_name' => 'Selangor']);
     PostcodeMy::create([
@@ -204,7 +174,7 @@ it('fills the town and state from a postcode', function () {
 });
 
 it('keeps order detail behind the order grant', function () {
-    $admin = detailAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
     $order = Order::factory()->create();
 
     $this->actingAs($admin, 'admin')->getJson("/admin/orders/{$order->id}/detail")->assertForbidden();

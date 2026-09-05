@@ -2,41 +2,11 @@
 
 use App\Models\Activity;
 use App\Models\Cart;
-use App\Models\MemberHq;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\RoleAccess;
-use App\Services\PageAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
-
-function exportAdmin(string ...$slugs): MemberHq
-{
-    $user = MemberHq::create([
-        'email' => 'x'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Export',
-        'l_name' => 'Operator',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_ADMIN,
-        'status' => MemberHq::STATUS_ACTIVE,
-    ]);
-
-    foreach ($slugs as $i => $slug) {
-        RoleAccess::create([
-            'page_url' => $slug,
-            'name' => $slug,
-            'allowed_user' => '['.$user->id.']',
-            'sort' => $i,
-        ]);
-    }
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
 
 function csvFrom($response): array
 {
@@ -49,7 +19,7 @@ function csvFrom($response): array
 }
 
 it('exports one row per order with a header', function () {
-    $admin = exportAdmin('search-order');
+    $admin = adminWith(['search-order']);
 
     Order::factory()->create(['customer_name' => 'Aina', 'customer_name_last' => 'Rahim', 'status' => Order::STATUS_NEW]);
     Order::factory()->create(['customer_name' => 'Farid', 'customer_name_last' => 'Osman', 'status' => Order::STATUS_COMPLETED]);
@@ -61,7 +31,7 @@ it('exports one row per order with a header', function () {
 });
 
 it('exports one row per item when asked', function () {
-    $admin = exportAdmin('search-order');
+    $admin = adminWith(['search-order']);
     $order = Order::factory()->create();
 
     foreach (['Cleanser', 'Toner', 'Serum'] as $name) {
@@ -81,7 +51,7 @@ it('exports one row per item when asked', function () {
 });
 
 it('limits the export to one status', function () {
-    $admin = exportAdmin('search-order');
+    $admin = adminWith(['search-order']);
 
     Order::factory()->count(3)->create(['status' => Order::STATUS_NEW]);
     Order::factory()->count(2)->create(['status' => Order::STATUS_COMPLETED]);
@@ -92,7 +62,7 @@ it('limits the export to one status', function () {
 });
 
 it('limits the export to a date range', function () {
-    $admin = exportAdmin('search-order');
+    $admin = adminWith(['search-order']);
 
     $old = Order::factory()->create();
     Order::query()->whereKey($old->id)->update(['created_at' => now()->subMonths(3)]);
@@ -106,7 +76,7 @@ it('limits the export to a date range', function () {
 });
 
 it('refuses a range that ends before it starts', function () {
-    $admin = exportAdmin('search-order');
+    $admin = adminWith(['search-order']);
 
     $this->actingAs($admin, 'admin')
         ->get('/admin/orders/export?from=2026-03-01&to=2026-01-01')
@@ -114,7 +84,7 @@ it('refuses a range that ends before it starts', function () {
 });
 
 it('keeps identifiers out of the spreadsheet number formatter', function () {
-    $admin = exportAdmin('search-order');
+    $admin = adminWith(['search-order']);
 
     Order::factory()->withAwb('0630000123456')->create(['postcode' => '05100', 'customer_phone' => '0123456789']);
 
@@ -128,7 +98,7 @@ it('keeps identifiers out of the spreadsheet number formatter', function () {
 });
 
 it('records who took the export and what was in it', function () {
-    $admin = exportAdmin('search-order');
+    $admin = adminWith(['search-order']);
     Order::factory()->create(['status' => Order::STATUS_NEW]);
 
     $this->actingAs($admin, 'admin')
@@ -145,7 +115,7 @@ it('records who took the export and what was in it', function () {
 });
 
 it('keeps the export behind the order-search grant', function () {
-    $admin = exportAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
 
     $this->actingAs($admin, 'admin')->get('/admin/orders/export')->assertForbidden();
 

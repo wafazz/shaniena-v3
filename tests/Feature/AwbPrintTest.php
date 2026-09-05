@@ -1,44 +1,14 @@
 <?php
 
 use App\Models\AwbPrint;
-use App\Models\MemberHq;
 use App\Models\Order;
-use App\Models\RoleAccess;
-use App\Services\PageAccess;
 use App\Services\Shipping\AwbLabel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function printAdmin(string ...$slugs): MemberHq
-{
-    $user = MemberHq::create([
-        'email' => 'p'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Print',
-        'l_name' => 'Operator',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_LOGISTIC,
-        'status' => MemberHq::STATUS_ACTIVE,
-    ]);
-
-    foreach ($slugs as $i => $slug) {
-        RoleAccess::create([
-            'page_url' => $slug,
-            'name' => $slug,
-            'allowed_user' => '['.$user->id.']',
-            'sort' => $i,
-        ]);
-    }
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
-
 it('streams a PDF for one booked order', function () {
-    $admin = printAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->withAwb('630000123456')->create([
         'courier_service' => 'J&T Express',
         'status' => Order::STATUS_PROCESSING,
@@ -52,7 +22,7 @@ it('streams a PDF for one booked order', function () {
 });
 
 it('marks the order printed and logs who printed it', function () {
-    $admin = printAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->withAwb('630000123456')->create(['courier_service' => 'J&T Express']);
 
     expect((bool) $order->printed_awb)->toBeFalse();
@@ -68,7 +38,7 @@ it('marks the order printed and logs who printed it', function () {
 });
 
 it('refuses to print an order with no AWB yet', function () {
-    $admin = printAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->create(['awb_number' => '']);
 
     $this->actingAs($admin, 'admin')
@@ -82,7 +52,7 @@ it('refuses to print an order with no AWB yet', function () {
 });
 
 it('prints a batch and skips the ones with nothing to print', function () {
-    $admin = printAdmin('new-order');
+    $admin = adminWith(['new-order']);
 
     $ready = Order::factory()->withAwb('630000111111')->create(['courier_service' => 'J&T Express']);
     $alsoReady = Order::factory()->withAwb('630000222222')->create(['courier_service' => 'DHL eCommerce']);
@@ -119,7 +89,7 @@ it('encodes the AWB in both the barcode and the QR', function () {
 });
 
 it('keeps AWBs away from staff without order access', function () {
-    $admin = printAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
     $order = Order::factory()->withAwb('630000444444')->create();
 
     $this->actingAs($admin, 'admin')

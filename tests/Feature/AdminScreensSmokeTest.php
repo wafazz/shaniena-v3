@@ -18,39 +18,15 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\Screens;
 
 uses(RefreshDatabase::class);
 
 /** Every GET screen an admin can reach, and the component each must render. */
-dataset('admin screens', [
-    'dashboard' => ['dashboard', '/admin/dashboard', 'Admin/Dashboard'],
-    'new order queue' => ['new-order', '/admin/new-order', 'Admin/Orders/Queue'],
-    'order search' => ['search-order', '/admin/search-order', 'Admin/Orders/Search'],
-    'stock control' => ['stock-control', '/admin/stock-control', 'Admin/Products/StockControl'],
-    'new product' => ['new-product', '/admin/new-product', 'Admin/Products/Form'],
-    'categories' => ['category-product', '/admin/category-product', 'Admin/Catalogue/Categories'],
-    'brands' => ['brand-product', '/admin/brand-product', 'Admin/Catalogue/Brands'],
-    'sliders' => ['slider-setting', '/admin/slider-setting', 'Admin/Content/Sliders'],
-    'blog' => ['announcement-blog', '/admin/announcement-blog', 'Admin/Content/Blog'],
-    'store settings' => ['store-setting', '/admin/store-setting', 'Admin/Settings/Store'],
-    'shipping cost' => ['delivery-charge', '/admin/delivery-charge', 'Admin/Settings/ShippingCost'],
-    'payments' => ['payment-setting', '/admin/payment-setting', 'Admin/Settings/Payments'],
-    'countries' => ['list-country', '/admin/list-country', 'Admin/Settings/Countries'],
-    'pickup hubs' => ['pickup-hub', '/admin/pickup-hub', 'Admin/Logistics/PickupHubs'],
-    'support tickets' => ['support/tickets', '/admin/support/tickets', 'Admin/Support/Tickets'],
-    'sales report' => ['sales-report', '/admin/sales-report', 'Admin/Reports/Sales'],
-    'activity log' => ['activity-log', '/admin/activity-log', 'Admin/Reports/ActivityLog'],
-    'hq staff' => ['hq-staff', '/admin/hq-staff', 'Admin/Staff/Index'],
-    'dhl' => ['dhl-setting', '/admin/dhl-setting', 'Admin/Settings/Dhl'],
-    'jt express' => ['jt-express', '/admin/jt-express', 'Admin/Settings/JtExpress'],
-    'policy' => ['setting-policy', '/admin/setting-policy', 'Admin/Settings/PageContent'],
-    'terms' => ['setting-terms', '/admin/setting-terms', 'Admin/Settings/PageContent'],
-    'about us' => ['setting-about-us', '/admin/setting-about-us', 'Admin/Settings/PageContent'],
-    'logo' => ['logo-setting', '/admin/logo-setting', 'Admin/Settings/Logo'],
-]);
+dataset('admin screens', Screens::admin());
 
 it('renders for an admin who has the slug', function (string $slug, string $path, string $component) {
-    $this->actingAs(queueAdmin($slug), 'admin')->get($path)
+    $this->actingAs(adminWith([$slug]), 'admin')->get($path)
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component($component));
 })->with('admin screens');
@@ -63,14 +39,14 @@ it('403s for an admin who does not', function (string $slug, string $path) {
         return;
     }
 
-    $this->actingAs(queueAdmin('dashboard'), 'admin')->get($path)->assertForbidden();
+    $this->actingAs(adminWith(['dashboard']), 'admin')->get($path)->assertForbidden();
 })->with('admin screens');
 
 // --- content -------------------------------------------------------------
 
 it('adds a slide at the end of the running order', function () {
     Storage::fake('public');
-    $admin = queueAdmin('slider-setting');
+    $admin = adminWith(['slider-setting']);
 
     foreach (['one.jpg', 'two.jpg'] as $name) {
         $this->actingAs($admin, 'admin')
@@ -83,7 +59,7 @@ it('adds a slide at the end of the running order', function () {
 
 it('saves a dragged slide order', function () {
     Storage::fake('public');
-    $admin = queueAdmin('slider-setting');
+    $admin = adminWith(['slider-setting']);
     $a = Slider::create(['image' => 'a.jpg', 'sort_order' => 1, 'status' => true]);
     $b = Slider::create(['image' => 'b.jpg', 'sort_order' => 2, 'status' => true]);
 
@@ -93,7 +69,7 @@ it('saves a dragged slide order', function () {
 });
 
 it('publishes a blog post against its author', function () {
-    $admin = queueAdmin('announcement-blog');
+    $admin = adminWith(['announcement-blog']);
 
     $this->actingAs($admin, 'admin')
         ->post('/admin/blog', ['title' => 'Raya restock', 'contents' => 'Everything is back in stock.'])
@@ -105,7 +81,7 @@ it('publishes a blog post against its author', function () {
 // --- logistics -----------------------------------------------------------
 
 it('rejects a duplicate hub code', function () {
-    $admin = queueAdmin('pickup-hub');
+    $admin = adminWith(['pickup-hub']);
     PickupHub::create(['hub_code' => 'KL01', 'hub_name' => 'KL Central', 'status' => 'active']);
 
     $this->actingAs($admin, 'admin')
@@ -116,7 +92,7 @@ it('rejects a duplicate hub code', function () {
 // --- support -------------------------------------------------------------
 
 it('replies to a ticket and logs the status change', function () {
-    $admin = queueAdmin('support/tickets');
+    $admin = adminWith(['support/tickets']);
     $ticket = SupportTicket::create([
         'customer_name' => 'Aisyah', 'customer_email' => 'a@example.test',
         'ticket_no' => 'T-1', 'title' => 'Where is my order?',
@@ -135,7 +111,7 @@ it('replies to a ticket and logs the status change', function () {
 });
 
 it('sorts open tickets urgent first', function () {
-    $admin = queueAdmin('support/tickets');
+    $admin = adminWith(['support/tickets']);
     foreach ([['T-low', 'low'], ['T-urgent', 'urgent'], ['T-medium', 'medium']] as [$no, $priority]) {
         SupportTicket::create([
             'customer_name' => 'X', 'customer_email' => 'x@example.test', 'ticket_no' => $no,
@@ -150,7 +126,7 @@ it('sorts open tickets urgent first', function () {
 // --- reporting -----------------------------------------------------------
 
 it('reports revenue for the requested range only', function () {
-    $admin = queueAdmin('sales-report');
+    $admin = adminWith(['sales-report']);
     Order::factory()->status(Order::STATUS_COMPLETED)->create(['myr_value_include_postage' => 200, 'created_at' => now()]);
     Order::factory()->status(Order::STATUS_COMPLETED)->create(['myr_value_include_postage' => 999, 'created_at' => now()->subMonths(3)]);
 
@@ -160,13 +136,13 @@ it('reports revenue for the requested range only', function () {
 });
 
 it('rejects a range that ends before it starts', function () {
-    $this->actingAs(queueAdmin('sales-report'), 'admin')
+    $this->actingAs(adminWith(['sales-report']), 'admin')
         ->get('/admin/sales-report?from=2026-09-05&to=2026-09-01')
         ->assertSessionHasErrors('to');
 });
 
 it('filters the activity log by staff member', function () {
-    $admin = queueAdmin('activity-log');
+    $admin = adminWith(['activity-log']);
     $other = MemberHq::create([
         'email' => 'x@example.test', 'password' => bcrypt('x'), 'sec_pin' => '',
         'f_name' => 'Other', 'l_name' => 'Staff', 'phone' => '01', 'role' => 3, 'status' => 1,
@@ -183,7 +159,7 @@ it('filters the activity log by staff member', function () {
 // --- courier & CMS settings ---------------------------------------------
 
 it('never sends a courier password to the browser', function () {
-    $admin = queueAdmin('dhl-setting');
+    $admin = adminWith(['dhl-setting']);
     DhlSetting::create([
         'id' => 1, 'production_sandbox' => 1,
         'clientid' => 'live-id', 'password' => 'live-password-secret',
@@ -198,7 +174,7 @@ it('never sends a courier password to the browser', function () {
 });
 
 it('keeps a courier secret when the field is blank', function () {
-    $admin = queueAdmin('jt-express');
+    $admin = adminWith(['jt-express']);
     JtSetting::create([
         'id' => 1, 'production_sandbox' => 0,
         'url_sandbox' => 'https://sandbox.jt.test', 'username_sanbox' => 'u',
@@ -219,7 +195,7 @@ it('keeps a courier secret when the field is blank', function () {
 });
 
 it('saves storefront page copy against the right table', function () {
-    $admin = queueAdmin('setting-policy', 'setting-terms');
+    $admin = adminWith(['setting-policy', 'setting-terms']);
 
     $this->actingAs($admin, 'admin')->put('/admin/setting-policy', ['description' => 'Our returns policy.'])->assertRedirect();
     $this->actingAs($admin, 'admin')->put('/admin/setting-terms', ['description' => 'The terms.'])->assertRedirect();
@@ -230,7 +206,7 @@ it('saves storefront page copy against the right table', function () {
 
 it('makes the first uploaded logo the active one', function () {
     Storage::fake('public');
-    $admin = queueAdmin('logo-setting');
+    $admin = adminWith(['logo-setting']);
 
     $this->actingAs($admin, 'admin')->post('/admin/logo-setting', ['image' => UploadedFile::fake()->image('logo.png')]);
     expect(ImageSetting::logos()->first()->isDefault())->toBeTrue();
@@ -241,7 +217,7 @@ it('makes the first uploaded logo the active one', function () {
 
 it('will not delete the logo currently in use', function () {
     Storage::fake('public');
-    $admin = queueAdmin('logo-setting');
+    $admin = adminWith(['logo-setting']);
     $this->actingAs($admin, 'admin')->post('/admin/logo-setting', ['image' => UploadedFile::fake()->image('logo.png')]);
 
     $logo = ImageSetting::logos()->first();
@@ -253,13 +229,13 @@ it('will not delete the logo currently in use', function () {
 // --- own account ---------------------------------------------------------
 
 it('lets an admin reach their own profile without any slug', function () {
-    $this->actingAs(queueAdmin(), 'admin')->get('/admin/profile')
+    $this->actingAs(adminWith([]), 'admin')->get('/admin/profile')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('Admin/Account/Profile'));
 });
 
 it('changes an admin password once the current one checks out', function () {
-    $admin = queueAdmin();
+    $admin = adminWith([]);
     $admin->forceFill(['password' => bcrypt('old-Password!1')])->save();
 
     $this->actingAs($admin, 'admin')->put('/admin/password', [
@@ -278,7 +254,7 @@ it('changes an admin password once the current one checks out', function () {
 });
 
 it('accepts a legacy sha256 password as the current one', function () {
-    $admin = queueAdmin();
+    $admin = adminWith([]);
     // Stored the way the source stored it, bypassing the model's hashed cast.
     DB::table('member_hq')->where('id', $admin->id)->update(['password' => hash('sha256', 'legacy-pass')]);
 

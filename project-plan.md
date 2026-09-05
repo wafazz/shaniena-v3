@@ -182,14 +182,14 @@
 
 ## Phase 8: Testing & Verification *(Gate 4 — Probe/Echo)*
 
-- [ ] **8.1** Pest unit tests: pricing, postage, COD charge, stock math
-- [ ] **8.2** Feature tests: auth (both guards), authorization matrix
-- [ ] **8.3** Feature tests: product CRUD, variant + stock flows
-- [ ] **8.4** Feature tests: cart → checkout → order creation
-- [ ] **8.5** Payment gateway tests with mocked callbacks (valid + tampered checksums)
-- [ ] **8.6** Data-parity harness: replay real orders through old vs new pricing, diff every total
-- [ ] **8.7** Browser E2E smoke of the critical journey (claude-in-chrome)
-- [ ] **8.8** Manual smoke checklist for admin (43 screens) and storefront (23 screens)
+- [x] **8.1** Pricing, postage, COD charge and stock math — `ShippingChargesTest`, `StockControlTest` and the Basket suite. Postage takes the first kilo flat and `ceil()`s the extras; a COD order under the benchmark pays the *lower* fee; the zone is decided by whether a country has configured states, not by a hardcoded Malaysia id.
+- [x] **8.2** Auth on both guards and the authorization matrix — `AdminLoginScreenTest`, `AdminAuthFeaturesTest`, `LegacyAdminPasswordTest`, `PageAccessTest`, `StorefrontAccountTest`, plus the Phase 7 guards that assert *every* admin route carries a grant rather than testing a sample.
+- [x] **8.3** Product CRUD, variants and stock — `ProductFormTest`, `ProductListTest`, `StockControlTest`.
+- [x] **8.4** Cart → checkout → order — `StorefrontJourneyTest`, `CheckoutPaymentTest`, and `CodOrderLifecycleTest`, which covers what the browser run found (below).
+- [x] **8.5** Gateway callbacks with valid and tampered checksums — `PaymentGatewayTest`, plus `RateLimitAndReplayTest` for replay and idempotency.
+- [ ] **8.6** *(blocked — needs the live DB, see Open Risk 1)* Data-parity harness: replay real orders through old vs new pricing, diff every total
+- [x] **8.7** Browser E2E of the critical journey — `tests/e2e/critical-journey.mjs`, driven over CDP with Node's built-in WebSocket (the Chrome extension is unavailable here), so it needs nothing installed. 12 steps: land, open a product, add to basket, check out, price postage, place a COD order. It exits non-zero on any failure, so it can gate a deploy. **This is what found the three defects below** — none of which the Pest suite could see, because each step passed in isolation.
+- [x] **8.8** Screen smoke coverage, as tests rather than a checklist. A hand-kept list of 66 screens goes stale the first time someone adds one, so `tests/Support/Screens.php` holds the inventory and `ScreenCoverageTest` compares it against the routes that actually exist: a new admin screen either joins the smoke walk or is recorded against the named test that covers it, and doing neither fails the suite. The storefront walk renders every public page twice — with and without a country chosen — against an empty catalogue, which is what a fresh deployment looks like.
 
 ## Phase 9: Cutover
 
@@ -319,6 +319,11 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 83 | Visitor counts live in the cache | `live-updater.php` wrote them to `live_visitors.json` inside the document root and `chmod`'d it 0666 — world-readable traffic figures in a world-writable file. |
 | 84 | Delivery sync has no cursor file | `last_processed.json` only moved forward, so an order shipped after the cursor passed its id was skipped until the file happened to reset to 0. Status *is* the cursor now: a completed order is no longer in delivery, so it is never polled again. |
 | 85 | TLS verification restored on tracking calls | `delivery-status.php` set `CURLOPT_SSL_VERIFYPEER = false`, making every tracking call interceptable — and it carried a hardcoded production signing key. |
+| 103 | COD retires its basket at the moment the order is placed | A COD order is live immediately and no callback is coming, so its cart rows stayed status 0 — and `ExpireAbandonedCarts` soft-deleted them ten minutes later. Since `cart` *is* where an order's line items live, the order kept its totals and lost every product: the queue showed nothing, the AWB printed empty at minimum weight, the courier was quoted for the wrong parcel, and COD never counted toward best sellers. Found by the browser run, proven by a test that fails without the fix. |
+| 104 | The checkout form uses the template's own class names | The markup said `checkout__input`; the stylesheet says `checkout__form__input`. Every field on the most important form in the shop rendered as a bare browser box, with the two address lines side by side and overflowing. |
+| 105 | Checkout fields are real labels with ids and autocomplete | Ashion used a `<p>` as a pseudo-label, so nothing was programmatically associated — a screen reader announced an anonymous text box, clicking the text did not focus the field, and no browser or password manager could fill an address. The SCSS now styles `label` alongside `p`, and its `<select>`s at all, which the template never did. |
+| 106 | Track and Support are `noindex` | Both show one customer their own order or ticket after a lookup, and both were using a plain `<Head>` with no robots directive at all. |
+| 107 | One test helper for staff, in `tests/Pest.php` | Seven files had grown a near-identical copy, and the one that was shared lived in another test file — so any file using it could not be run on its own. Every test file now runs standalone, which is the most common thing a developer does. |
 | 96 | `Order` drops the columns that decide its worth from `$fillable` | A `$guarded` denylist protects only what someone remembered to list. Status, money and courier fields now require a deliberate `forceFill`, which is greppable; a stray `Order::create($request->all())` cannot reach them. |
 | 97 | One order-status vocabulary, held in step by a test | The model said `10 = Awaiting Payment`, the pill said `Failed Payment`, and the source said both — its dashboard labelled 10 "Failed Payment" while the SenangPay bot polled the same code as "pending, ask again". The model's wording wins and a test fails if the two maps drift. |
 | 98 | The confirmation claim is the UPDATE, not a prior read | Two retried callbacks arriving together both passed a read-then-write check, both confirmed, and both emailed the customer. |

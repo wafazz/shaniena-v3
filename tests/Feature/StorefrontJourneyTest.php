@@ -4,7 +4,6 @@ use App\Http\Middleware\HandleStorefrontRequests;
 use App\Models\Cart;
 use App\Models\CodCharge;
 use App\Models\CountryPrice;
-use App\Models\ListCountry;
 use App\Models\Order;
 use App\Models\PostageCost;
 use App\Models\Product;
@@ -15,38 +14,6 @@ use App\Services\Storefront\Basket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
-
-function shopCountry(): ListCountry
-{
-    // Not firstOrCreate on an id: `id` is not fillable, so the row would be
-    // created with whatever the auto-increment happened to be.
-    return ListCountry::firstOrCreate(
-        ['name' => 'Malaysia'],
-        ['sign' => 'MYR', 'rate' => 1, 'phone_code' => '+60', 'status' => ListCountry::STATUS_ACTIVE],
-    );
-}
-
-function sellable(string $name = 'Hydra Glow Cleanser', int $stock = 50, float $sale = 59.90, int $cap = 5): array
-{
-    $country = shopCountry();
-    $product = Product::factory()->named($name)->create(['weight' => 500]);
-    $variant = ProductVariant::create([
-        'product_id' => $product->id, 'variant_name' => '50ml', 'sku' => 'SKU-'.$product->id,
-        'price_retail' => 79.90, 'price_sale' => $sale, 'max_purchase' => $cap,
-    ]);
-
-    StockControl::create([
-        'p_id' => $product->id, 'pv_id' => $variant->id,
-        'stock_in' => $stock, 'stock_out' => 0, 'comment' => 'Opening',
-    ]);
-
-    CountryPrice::create([
-        'product_id' => $product->id, 'country_id' => $country->id,
-        'market_price' => 79.90, 'sale_price' => $sale,
-    ]);
-
-    return [$product, $variant];
-}
 
 // --- country gate --------------------------------------------------------
 

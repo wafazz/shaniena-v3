@@ -10,7 +10,7 @@ uses(RefreshDatabase::class);
 beforeEach(fn () => Cache::forget(DashboardMetrics::CACHE_KEY));
 
 it('renders with metrics, latest orders and activity', function () {
-    $admin = queueAdmin('dashboard');
+    $admin = adminWith(['dashboard']);
     Order::factory()->status(Order::STATUS_NEW)->count(3)->create();
 
     $this->actingAs($admin, 'admin')->get('/admin/dashboard')

@@ -107,6 +107,16 @@ class PlaceOrder
                 'hash_code' => bin2hex(random_bytes(32)),
             ]);
 
+            // A COD order is live the moment it is placed — there is no
+            // callback coming to retire its basket. Without this the lines
+            // stayed status 0, and ExpireAbandonedCarts soft-deleted them ten
+            // minutes later: the order kept its totals but lost every line, so
+            // the queue showed no products, the AWB printed empty at minimum
+            // weight, and the courier was quoted the wrong parcel.
+            if ($channel === Order::CHANNEL_COD) {
+                $this->retireBasket($order);
+            }
+
             return [
                 'order' => $order,
                 'reference' => $order->reference(),
@@ -143,10 +153,7 @@ class PlaceOrder
                 return false;
             }
 
-            Cart::query()
-                ->where('session_id', $order->session_id)
-                ->whereIn('status', Cart::STATUS_ACTIVE)
-                ->update(['status' => Cart::STATUS_PAID, 'updated_at' => now()]);
+            $this->retireBasket($order);
 
             return true;
         });
@@ -185,6 +192,20 @@ class PlaceOrder
             'order' => $order->id,
             'channel' => $order->payment_channel,
         ]);
+    }
+
+    /**
+     * Mark an order's basket paid so it stops looking abandoned.
+     *
+     * The rows stay: they ARE the order's line items — `customer_orders` holds
+     * one row per order and the products live in `cart`, keyed by session id.
+     */
+    private function retireBasket(Order $order): void
+    {
+        Cart::query()
+            ->where('session_id', $order->session_id)
+            ->whereIn('status', Cart::STATUS_ACTIVE)
+            ->update(['status' => Cart::STATUS_PAID, 'updated_at' => now()]);
     }
 
     public function detailFor(Order $order): ?OrderDetail

@@ -1,39 +1,11 @@
 <?php
 
 use App\Models\CsTicketAttachment;
-use App\Models\MemberHq;
-use App\Models\RoleAccess;
 use App\Models\SupportTicket;
-use App\Services\PageAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
-
-function csAdmin(string ...$slugs): MemberHq
-{
-    $user = MemberHq::create([
-        'email' => 'a'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Attach',
-        'l_name' => 'Operator',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_ADMIN,
-        'status' => MemberHq::STATUS_ACTIVE,
-    ]);
-
-    foreach ($slugs as $i => $slug) {
-        RoleAccess::create([
-            'page_url' => $slug, 'name' => $slug,
-            'allowed_user' => '['.$user->id.']', 'sort' => $i,
-        ]);
-    }
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
 
 function ticketWithFile(string $path = 'tickets/receipt.pdf'): array
 {
@@ -61,7 +33,7 @@ function ticketWithFile(string $path = 'tickets/receipt.pdf'): array
 it('never sends the stored file path to the browser', function () {
     Storage::fake('local');
 
-    $admin = csAdmin('support/tickets');
+    $admin = adminWith(['support/tickets']);
     [$ticket] = ticketWithFile();
 
     // The path is imported data. It went straight into an href before, so a
@@ -79,7 +51,7 @@ it('serves an attachment to staff who may see the ticket', function () {
     Storage::fake('local');
     Storage::disk('local')->put('tickets/receipt.pdf', '%PDF-1.4 receipt');
 
-    $admin = csAdmin('support/tickets');
+    $admin = adminWith(['support/tickets']);
     [$ticket, $attachment] = ticketWithFile();
 
     $this->actingAs($admin, 'admin')
@@ -92,7 +64,7 @@ it('keeps attachments away from staff without the support grant', function () {
     Storage::fake('local');
     Storage::disk('local')->put('tickets/receipt.pdf', '%PDF-1.4 receipt');
 
-    $admin = csAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
     [$ticket, $attachment] = ticketWithFile();
 
     // The file itself had no authorization at all before: anyone who guessed
@@ -106,7 +78,7 @@ it('will not serve one ticket a different ticket attachment', function () {
     Storage::fake('local');
     Storage::disk('local')->put('tickets/receipt.pdf', '%PDF');
 
-    $admin = csAdmin('support/tickets');
+    $admin = adminWith(['support/tickets']);
     [, $attachment] = ticketWithFile();
     [$other] = ticketWithFile('tickets/other.pdf');
 
@@ -118,7 +90,7 @@ it('will not serve one ticket a different ticket attachment', function () {
 it('refuses a path that tries to climb out of the attachment root', function () {
     Storage::fake('local');
 
-    $admin = csAdmin('support/tickets');
+    $admin = adminWith(['support/tickets']);
     [$ticket, $attachment] = ticketWithFile('../../../.env');
 
     $this->actingAs($admin, 'admin')
@@ -129,7 +101,7 @@ it('refuses a path that tries to climb out of the attachment root', function () 
 it('404s rather than erroring when the file is gone', function () {
     Storage::fake('local');
 
-    $admin = csAdmin('support/tickets');
+    $admin = adminWith(['support/tickets']);
     [$ticket, $attachment] = ticketWithFile();
 
     $this->actingAs($admin, 'admin')

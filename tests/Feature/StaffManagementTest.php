@@ -26,7 +26,7 @@ function otherStaff(): MemberHq
 }
 
 it('lists staff with their designation and status', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
     otherStaff();
 
     $this->actingAs($admin, 'admin')->get('/admin/hq-staff')
@@ -35,7 +35,7 @@ it('lists staff with their designation and status', function () {
 });
 
 it('stores a new account with a bcrypt hash, never sha256', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
 
     $this->actingAs($admin, 'admin')->post('/admin/hq-staff', [
         'f_name' => 'Farah', 'l_name' => 'Aziz',
@@ -51,7 +51,7 @@ it('stores a new account with a bcrypt hash, never sha256', function () {
 });
 
 it('enforces the password rules server-side, not just in the browser', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
 
     $this->actingAs($admin, 'admin')->post('/admin/hq-staff', [
         'f_name' => 'Weak', 'l_name' => 'Password',
@@ -64,7 +64,7 @@ it('enforces the password rules server-side, not just in the browser', function 
 });
 
 it('will not let an admin assign the HQ/Owner role', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
 
     $this->actingAs($admin, 'admin')->post('/admin/hq-staff', [
         'f_name' => 'Sneaky', 'l_name' => 'Escalation',
@@ -75,13 +75,13 @@ it('will not let an admin assign the HQ/Owner role', function () {
 });
 
 it('refuses to let anyone edit their own access', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
 
     $this->actingAs($admin, 'admin')->get("/admin/hq-staff/{$admin->id}")->assertForbidden();
 });
 
 it('grants and revokes a permission, and the gate follows immediately', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
     $target = otherStaff();
     RoleAccess::create(['page_url' => 'stock-control', 'name' => 'Stock Control', 'allowed_user' => '', 'sort' => 1]);
 
@@ -100,7 +100,7 @@ it('grants and revokes a permission, and the gate follows immediately', function
 });
 
 it('keeps the bracket format so imported rows stay readable', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
     $target = otherStaff();
     RoleAccess::create(['page_url' => 'dashboard', 'name' => 'Dashboard', 'allowed_user' => '[99]', 'sort' => 1]);
 
@@ -111,7 +111,7 @@ it('keeps the bracket format so imported rows stay readable', function () {
 });
 
 it('logs every permission change', function () {
-    $admin = queueAdmin('hq-staff');
+    $admin = adminWith(['hq-staff']);
     $target = otherStaff();
     RoleAccess::create(['page_url' => 'dashboard', 'name' => 'Dashboard', 'allowed_user' => '', 'sort' => 1]);
 

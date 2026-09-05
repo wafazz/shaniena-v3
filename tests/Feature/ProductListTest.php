@@ -2,44 +2,14 @@
 
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\MemberHq;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\RoleAccess;
-use App\Services\PageAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function catalogueAdmin(string ...$slugs): MemberHq
-{
-    $user = MemberHq::create([
-        'email' => 'c'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Catalogue',
-        'l_name' => 'Operator',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_ADMIN,
-        'status' => MemberHq::STATUS_ACTIVE,
-    ]);
-
-    foreach ($slugs as $i => $slug) {
-        RoleAccess::create([
-            'page_url' => $slug,
-            'name' => $slug,
-            'allowed_user' => '['.$user->id.']',
-            'sort' => $i,
-        ]);
-    }
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
-
 it('lists products with their stock and price range', function () {
-    $admin = catalogueAdmin('product-list');
+    $admin = adminWith(['product-list']);
 
     $product = Product::factory()->named('Hydrating Toner')->create();
 
@@ -66,7 +36,7 @@ it('lists products with their stock and price range', function () {
 });
 
 it('finds a product by its variant SKU', function () {
-    $admin = catalogueAdmin('product-list');
+    $admin = adminWith(['product-list']);
 
     $wanted = Product::factory()->named('Night Cream')->create();
     ProductVariant::create([
@@ -86,7 +56,7 @@ it('finds a product by its variant SKU', function () {
 });
 
 it('filters by category, brand and status', function () {
-    $admin = catalogueAdmin('product-list');
+    $admin = adminWith(['product-list']);
 
     $category = Category::factory()->create(['name' => 'Skincare']);
     $brand = Brand::factory()->create(['name' => 'Rozeyana']);
@@ -116,7 +86,7 @@ it('filters by category, brand and status', function () {
 });
 
 it('shows a product that has no variants yet', function () {
-    $admin = catalogueAdmin('product-list');
+    $admin = adminWith(['product-list']);
 
     // Stock Control, which the source used as the product list, lists variants
     // — so a freshly created product was invisible until one was added.
@@ -132,7 +102,7 @@ it('shows a product that has no variants yet', function () {
 });
 
 it('pages rather than loading the whole catalogue', function () {
-    $admin = catalogueAdmin('product-list');
+    $admin = adminWith(['product-list']);
 
     Product::factory()->count(30)->create();
 
@@ -146,7 +116,7 @@ it('pages rather than loading the whole catalogue', function () {
 });
 
 it('keeps the catalogue behind its own grant', function () {
-    $admin = catalogueAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
 
     $this->actingAs($admin, 'admin')->get('/admin/product-list')->assertForbidden();
 });

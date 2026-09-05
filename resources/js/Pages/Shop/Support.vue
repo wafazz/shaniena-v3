@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
+import Seo from '../../Storefront/Seo.vue';
 import StorefrontLayout from '../../Layouts/StorefrontLayout.vue';
 
 const props = defineProps({
@@ -28,7 +29,7 @@ const reply = useForm({ ticket_no: '', email: '', message: '' });
 </script>
 
 <template>
-    <Head title="Support" />
+    <Seo title="Support" description="Open a ticket or pick up an existing one." :index="false" />
 
     <StorefrontLayout>
         <div class="breadcrumb-option">

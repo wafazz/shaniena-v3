@@ -22,7 +22,7 @@ function variantFor(Product $product, string $sku = 'HGC-100'): ProductVariant
 }
 
 it('lists products with a computed stock balance and sold count', function () {
-    $admin = queueAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
     $product = Product::factory()->named('Hydra Glow Cleanser')->create();
     $variant = variantFor($product);
 
@@ -44,7 +44,7 @@ it('lists products with a computed stock balance and sold count', function () {
 });
 
 it('records an adjustment as an append-only ledger row', function () {
-    $admin = queueAdmin('stock-control', 'button-add-deduct-stock');
+    $admin = adminWith(['stock-control', 'button-add-deduct-stock']);
     $product = Product::factory()->create();
     $variant = variantFor($product);
 
@@ -61,7 +61,7 @@ it('records an adjustment as an append-only ledger row', function () {
 });
 
 it('refuses an adjustment from an operator without the button permission', function () {
-    $admin = queueAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
     $variant = variantFor(Product::factory()->create());
 
     $this->actingAs($admin, 'admin')
@@ -72,14 +72,14 @@ it('refuses an adjustment from an operator without the button permission', funct
 });
 
 it('tells the screen which buttons this operator may use', function () {
-    $admin = queueAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
 
     $this->actingAs($admin, 'admin')->get('/admin/stock-control')
         ->assertInertia(fn ($page) => $page->where('can.adjustStock', false)->where('can.deleteProduct', false));
 });
 
 it('rejects a zero or negative adjustment', function () {
-    $admin = queueAdmin('stock-control', 'button-add-deduct-stock');
+    $admin = adminWith(['stock-control', 'button-add-deduct-stock']);
     $variant = variantFor(Product::factory()->create());
 
     $this->actingAs($admin, 'admin')
@@ -88,7 +88,7 @@ it('rejects a zero or negative adjustment', function () {
 });
 
 it('uses the configured low-stock threshold, defaulting to the source value', function () {
-    $admin = queueAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
 
     $this->actingAs($admin, 'admin')->get('/admin/stock-control')
         ->assertInertia(fn ($page) => $page->where('lowStockThreshold', 101));

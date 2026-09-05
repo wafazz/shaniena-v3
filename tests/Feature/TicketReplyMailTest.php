@@ -2,39 +2,11 @@
 
 use App\Mail\TicketReplied;
 use App\Models\CsTicketReply;
-use App\Models\MemberHq;
-use App\Models\RoleAccess;
 use App\Models\SupportTicket;
-use App\Services\PageAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
-
-function supportAdmin(): MemberHq
-{
-    $user = MemberHq::create([
-        'email' => 'cs'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Support',
-        'l_name' => 'Agent',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_ADMIN,
-        'status' => MemberHq::STATUS_ACTIVE,
-    ]);
-
-    RoleAccess::create([
-        'page_url' => 'support/tickets',
-        'name' => 'support/tickets',
-        'allowed_user' => '['.$user->id.']',
-        'sort' => 0,
-    ]);
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
 
 function ticketFor(string $email = 'buyer@example.test'): SupportTicket
 {
@@ -52,7 +24,7 @@ function ticketFor(string $email = 'buyer@example.test'): SupportTicket
 it('emails the customer when support replies', function () {
     Mail::fake();
 
-    $admin = supportAdmin();
+    $admin = adminWith(['support/tickets']);
     $ticket = ticketFor();
 
     $this->actingAs($admin, 'admin')
@@ -76,7 +48,7 @@ it('emails the customer when support replies', function () {
 it('queues the mail rather than sending it inline', function () {
     Mail::fake();
 
-    $admin = supportAdmin();
+    $admin = adminWith(['support/tickets']);
     $ticket = ticketFor();
 
     $this->actingAs($admin, 'admin')
@@ -90,7 +62,7 @@ it('queues the mail rather than sending it inline', function () {
 it('still saves the reply when the ticket has no email address', function () {
     Mail::fake();
 
-    $admin = supportAdmin();
+    $admin = adminWith(['support/tickets']);
     $ticket = ticketFor('');
 
     $response = $this->actingAs($admin, 'admin')

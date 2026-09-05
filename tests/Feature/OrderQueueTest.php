@@ -1,46 +1,12 @@
 <?php
 
 use App\Models\Cart;
-use App\Models\MemberHq;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\RoleAccess;
-use App\Services\PageAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
-
-function queueAdmin(string ...$slugs): MemberHq
-{
-    $id = DB::table('member_hq')->insertGetId([
-        'email' => 'q'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Queue',
-        'l_name' => 'Operator',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_LOGISTIC,
-        'status' => MemberHq::STATUS_ACTIVE,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $user = MemberHq::findOrFail($id);
-
-    foreach ($slugs as $i => $slug) {
-        RoleAccess::create([
-            'page_url' => $slug,
-            'name' => $slug,
-            'allowed_user' => '['.$user->id.']',
-            'sort' => $i,
-        ]);
-    }
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
 
 /** An order with real cart lines, the way the source stores them. */
 function orderWithLines(int $status, array $productNames, int $qty = 1): Order
@@ -68,7 +34,7 @@ function orderWithLines(int $status, array $productNames, int $qty = 1): Order
 }
 
 it('lists a working queue without needing a filter', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
     Order::factory()->status(Order::STATUS_NEW)->count(3)->create();
 
     $this->actingAs($admin, 'admin')->get('/admin/new-order')
@@ -80,7 +46,7 @@ it('lists a working queue without needing a filter', function () {
 });
 
 it('opens an archive empty until something is asked of it', function () {
-    $admin = queueAdmin('completed-order');
+    $admin = adminWith(['completed-order']);
     Order::factory()->status(Order::STATUS_COMPLETED)->count(3)->create();
 
     $this->actingAs($admin, 'admin')->get('/admin/completed-order')
@@ -93,7 +59,7 @@ it('opens an archive empty until something is asked of it', function () {
 });
 
 it('shows only the requested status', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
     Order::factory()->status(Order::STATUS_NEW)->create();
     Order::factory()->status(Order::STATUS_PROCESSING)->count(4)->create();
 
@@ -102,7 +68,7 @@ it('shows only the requested status', function () {
 });
 
 it('matches a product on any line, not only single-item orders', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
 
     // The source's `HAVING COUNT(*) = 1` hid exactly this order.
     orderWithLines(Order::STATUS_NEW, ['Hydra Glow Cleanser', 'Aloe Vera Gel Moisturizer 100ml']);
@@ -114,13 +80,13 @@ it('matches a product on any line, not only single-item orders', function () {
 });
 
 it('403s a queue the operator was not granted', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
 
     $this->actingAs($admin, 'admin')->get('/admin/database-order')->assertForbidden();
 });
 
 it('advances an order one stage and moves its cart lines on cancel', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = orderWithLines(Order::STATUS_NEW, ['Hydra Glow Cleanser']);
 
     $this->actingAs($admin, 'admin')
@@ -132,7 +98,7 @@ it('advances an order one stage and moves its cart lines on cancel', function ()
 });
 
 it('refuses a transition the order is not eligible for', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->status(Order::STATUS_NEW)->create();
 
     // New -> Completed skips two stages; the source trusted this from the URL.
@@ -144,7 +110,7 @@ it('refuses a transition the order is not eligible for', function () {
 });
 
 it('writes an activity row for every stage move', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->status(Order::STATUS_NEW)->create();
 
     $this->actingAs($admin, 'admin')->post("/admin/orders/{$order->id}/status", ['to' => Order::STATUS_PROCESSING]);
@@ -153,7 +119,7 @@ it('writes an activity row for every stage move', function () {
 });
 
 it('moves a bulk selection and reports the ones it skipped', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $movable = Order::factory()->status(Order::STATUS_NEW)->count(2)->create();
     $blocked = Order::factory()->status(Order::STATUS_COMPLETED)->create();
 
@@ -167,7 +133,7 @@ it('moves a bulk selection and reports the ones it skipped', function () {
 });
 
 it('loads order lines without a query per row', function () {
-    $admin = queueAdmin('new-order');
+    $admin = adminWith(['new-order']);
     foreach (range(1, 5) as $i) {
         orderWithLines(Order::STATUS_NEW, ["Product {$i}A", "Product {$i}B"]);
     }

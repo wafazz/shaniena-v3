@@ -18,7 +18,7 @@ uses(RefreshDatabase::class);
 // --- catalogue -----------------------------------------------------------
 
 it('adds a category and refuses one that is its own parent', function () {
-    $admin = queueAdmin('category-product');
+    $admin = adminWith(['category-product']);
 
     $this->actingAs($admin, 'admin')
         ->post('/admin/categories', ['name' => 'Skincare', 'slug' => 'skincare', 'parent_id' => '', 'sort_order' => 1])
@@ -33,7 +33,7 @@ it('adds a category and refuses one that is its own parent', function () {
 });
 
 it('will not remove a category that still has products', function () {
-    $admin = queueAdmin('category-product');
+    $admin = adminWith(['category-product']);
     $category = Category::factory()->create();
     Product::factory()->create(['category_id' => $category->id]);
 
@@ -43,7 +43,7 @@ it('will not remove a category that still has products', function () {
 });
 
 it('removes a brand once nothing points at it', function () {
-    $admin = queueAdmin('brand-product');
+    $admin = adminWith(['brand-product']);
     $brand = Brand::factory()->create();
 
     $this->actingAs($admin, 'admin')->delete("/admin/brands/{$brand->id}")->assertRedirect();
@@ -54,7 +54,7 @@ it('removes a brand once nothing points at it', function () {
 // --- store settings ------------------------------------------------------
 
 it('saves only the keys the screen owns', function () {
-    $admin = queueAdmin('store-setting');
+    $admin = adminWith(['store-setting']);
 
     $this->actingAs($admin, 'admin')->put('/admin/store-setting', [
         'settings' => ['store_name' => 'Shaniena', 'cod_enabled' => '1', 'not_a_real_key' => 'nope'],
@@ -70,7 +70,7 @@ it('saves only the keys the screen owns', function () {
 // --- payment settings ----------------------------------------------------
 
 it('never sends a payment secret to the browser', function () {
-    $admin = queueAdmin('payment-setting');
+    $admin = adminWith(['payment-setting']);
 
     SenangPaySetting::create([
         'merchant_id' => 'M-1', 'secret_key' => 'super-secret-sandbox',
@@ -94,7 +94,7 @@ it('never sends a payment secret to the browser', function () {
 });
 
 it('keeps the stored secret when the field is left blank', function () {
-    $admin = queueAdmin('payment-setting');
+    $admin = adminWith(['payment-setting']);
     SenangPaySetting::create([
         'merchant_id' => 'M-1', 'secret_key' => 'keep-me',
         'pro_merchant_id' => 'M-2', 'pro_secret_key' => 'keep-me-too', 'type' => 'sandbox',
@@ -113,7 +113,7 @@ it('keeps the stored secret when the field is left blank', function () {
 });
 
 it('replaces a secret when one is actually supplied', function () {
-    $admin = queueAdmin('payment-setting');
+    $admin = adminWith(['payment-setting']);
     BayarcashSetting::create(['type' => 'sandbox', 'sandbox_api_token' => 'old-token']);
 
     $this->actingAs($admin, 'admin')->put('/admin/payment-setting/bayarcash', [
@@ -126,7 +126,7 @@ it('replaces a secret when one is actually supplied', function () {
 // --- shipping ------------------------------------------------------------
 
 it('upserts postage and COD on country plus zone', function () {
-    $admin = queueAdmin('delivery-charge');
+    $admin = adminWith(['delivery-charge']);
     $country = ListCountry::create(['name' => 'Malaysia', 'sign' => 'MYR', 'rate' => 1, 'phone_code' => '+60', 'status' => 1]);
 
     foreach ([6.50, 7.50] as $rate) {
@@ -149,7 +149,7 @@ it('upserts postage and COD on country plus zone', function () {
 // --- countries & states --------------------------------------------------
 
 it('adds a country switched off so postage can be set first', function () {
-    $admin = queueAdmin('list-country');
+    $admin = adminWith(['list-country']);
 
     $this->actingAs($admin, 'admin')->post('/admin/countries', [
         'name' => 'Singapore', 'sign' => 'SGD', 'rate' => 0.30, 'phone_code' => '+65',
@@ -159,7 +159,7 @@ it('adds a country switched off so postage can be set first', function () {
 });
 
 it('requires a rate, because it is money on every order', function () {
-    $admin = queueAdmin('list-country');
+    $admin = adminWith(['list-country']);
 
     $this->actingAs($admin, 'admin')->post('/admin/countries', [
         'name' => 'Brunei', 'sign' => 'BND', 'rate' => '', 'phone_code' => '+673',
@@ -167,7 +167,7 @@ it('requires a rate, because it is money on every order', function () {
 });
 
 it('saves a state with an explicit shipping zone', function () {
-    $admin = queueAdmin('list-country');
+    $admin = adminWith(['list-country']);
     $country = ListCountry::create(['name' => 'Malaysia', 'sign' => 'MYR', 'rate' => 1, 'phone_code' => '+60', 'status' => 1]);
 
     $this->actingAs($admin, 'admin')->post("/admin/countries/{$country->id}/states", [
@@ -178,7 +178,7 @@ it('saves a state with an explicit shipping zone', function () {
 });
 
 it('rejects a shipping zone outside the two that exist', function () {
-    $admin = queueAdmin('list-country');
+    $admin = adminWith(['list-country']);
     $country = ListCountry::create(['name' => 'Malaysia', 'sign' => 'MYR', 'rate' => 1, 'phone_code' => '+60', 'status' => 1]);
 
     $this->actingAs($admin, 'admin')->post("/admin/countries/{$country->id}/states", [

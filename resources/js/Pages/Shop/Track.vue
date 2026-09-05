@@ -1,5 +1,6 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
+import Seo from '../../Storefront/Seo.vue';
 import StorefrontLayout from '../../Layouts/StorefrontLayout.vue';
 
 const props = defineProps({
@@ -11,7 +12,7 @@ const form = useForm({ order: '', email: '' });
 </script>
 
 <template>
-    <Head title="Track your order" />
+    <Seo title="Track your order" description="Check where your order has got to." :index="false" />
 
     <StorefrontLayout>
         <div class="breadcrumb-option">

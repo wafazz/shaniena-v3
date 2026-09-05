@@ -5,11 +5,8 @@ use App\Models\Activity;
 use App\Models\DhlSetting;
 use App\Models\DhlToken;
 use App\Models\JtSetting;
-use App\Models\MemberHq;
 use App\Models\NinjavanToken;
 use App\Models\Order;
-use App\Models\RoleAccess;
-use App\Services\PageAccess;
 use App\Services\Shipping\BookShipment;
 use App\Services\Shipping\Couriers;
 use App\Services\Shipping\DhlGateway;
@@ -20,34 +17,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
-
-/** A logistics operator with exactly the page grants named. */
-function shippingAdmin(string ...$slugs): MemberHq
-{
-    $user = MemberHq::create([
-        'email' => 's'.uniqid().'@example.test',
-        'password' => bcrypt('secret'),
-        'sec_pin' => '1234',
-        'f_name' => 'Shipping',
-        'l_name' => 'Operator',
-        'phone' => '0100000000',
-        'role' => MemberHq::ROLE_STAFF_LOGISTIC,
-        'status' => MemberHq::STATUS_ACTIVE,
-    ]);
-
-    foreach ($slugs as $i => $slug) {
-        RoleAccess::create([
-            'page_url' => $slug,
-            'name' => $slug,
-            'allowed_user' => '['.$user->id.']',
-            'sort' => $i,
-        ]);
-    }
-
-    app(PageAccess::class)->flushFor($user->id);
-
-    return $user;
-}
 
 function jtConfigured(): JtSetting
 {
@@ -325,7 +294,7 @@ it('books from the order queue', function () {
     jtConfigured();
     Http::fake(['*' => Http::response(['details' => [['status' => 'success', 'awb_no' => '630000444555']]])]);
 
-    $admin = shippingAdmin('new-order');
+    $admin = adminWith(['new-order']);
     $order = Order::factory()->create([
         'courier_service' => 'J&T Express',
         'awb_number' => '',
@@ -348,7 +317,7 @@ it('finishes a bulk booking even when one order is refused', function () {
 
     Http::fake(['*' => Http::response(['details' => [['status' => 'success', 'awb_no' => '630000777666']]])]);
 
-    $admin = shippingAdmin('new-order');
+    $admin = adminWith(['new-order']);
 
     $this->actingAs($admin, 'admin')
         ->post('/admin/orders/ship', ['orders' => [$good->id, $bad->id]])
@@ -366,7 +335,7 @@ it('will not let a member of staff without order access book anything', function
     Http::fake();
 
     $order = Order::factory()->create(['courier_service' => 'J&T Express', 'awb_number' => '']);
-    $admin = shippingAdmin('stock-control');
+    $admin = adminWith(['stock-control']);
 
     $this->actingAs($admin, 'admin')
         ->post("/admin/orders/{$order->id}/ship")

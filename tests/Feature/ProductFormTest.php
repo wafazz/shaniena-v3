@@ -32,7 +32,7 @@ function productPayload(array $overrides = []): array
 }
 
 it('creates a product with its variant', function () {
-    $admin = queueAdmin('new-product');
+    $admin = adminWith(['new-product']);
 
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload())->assertRedirect();
 
@@ -45,7 +45,7 @@ it('creates a product with its variant', function () {
 });
 
 it('rejects a duplicate slug', function () {
-    $admin = queueAdmin('new-product');
+    $admin = adminWith(['new-product']);
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload());
 
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload(['name' => 'Another']))
@@ -53,7 +53,7 @@ it('rejects a duplicate slug', function () {
 });
 
 it('requires a name on every variant of a variable product', function () {
-    $admin = queueAdmin('new-product');
+    $admin = adminWith(['new-product']);
 
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload([
         'type' => 'variable',
@@ -62,7 +62,7 @@ it('requires a name on every variant of a variable product', function () {
 });
 
 it('writes customer-facing prices to list_country_product_price', function () {
-    $admin = queueAdmin('new-product');
+    $admin = adminWith(['new-product']);
     $country = ListCountry::create(['name' => 'Malaysia', 'sign' => 'MYR', 'rate' => 1, 'phone_code' => '+60', 'status' => 1]);
 
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload([
@@ -77,7 +77,7 @@ it('writes customer-facing prices to list_country_product_price', function () {
 });
 
 it('soft-deletes a variant dropped from the form, never hard-deletes it', function () {
-    $admin = queueAdmin('new-product');
+    $admin = adminWith(['new-product']);
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload([
         'type' => 'variable',
         'variants' => [
@@ -103,7 +103,7 @@ it('soft-deletes a variant dropped from the form, never hard-deletes it', functi
 
 it('caps uploads at five images', function () {
     Storage::fake('public');
-    $admin = queueAdmin('new-product');
+    $admin = adminWith(['new-product']);
 
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload([
         'images' => array_map(fn ($i) => UploadedFile::fake()->image("shot{$i}.jpg"), range(1, 6)),
@@ -112,7 +112,7 @@ it('caps uploads at five images', function () {
 
 it('stores uploaded images against the product', function () {
     Storage::fake('public');
-    $admin = queueAdmin('new-product');
+    $admin = adminWith(['new-product']);
 
     $this->actingAs($admin, 'admin')->post('/admin/products', productPayload([
         'images' => [UploadedFile::fake()->image('front.jpg'), UploadedFile::fake()->image('back.jpg')],
@@ -125,5 +125,5 @@ it('stores uploaded images against the product', function () {
 });
 
 it('403s an operator without the product slug', function () {
-    $this->actingAs(queueAdmin('dashboard'), 'admin')->get('/admin/new-product')->assertForbidden();
+    $this->actingAs(adminWith(['dashboard']), 'admin')->get('/admin/new-product')->assertForbidden();
 });

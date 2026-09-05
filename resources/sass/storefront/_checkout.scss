@@ -39,7 +39,12 @@
 
   .checkout__form__input {
 
-    p {
+    // Ashion styled a <p> here. These are real labels now, so the rule covers
+    // both — and the template never styled its <select>s at all, which left
+    // the state and courier pickers as bare browser dropdowns.
+    p,
+    label {
+      display: block;
       color: #444444;
       font-weight: 500;
       margin-bottom: 10px;
@@ -47,6 +52,18 @@
       span {
         color: $primary-color;
       }
+    }
+
+    select {
+      height: 50px;
+      width: 100%;
+      border: 1px solid #e1e1e1;
+      border-radius: 2px;
+      margin-bottom: 25px;
+      font-size: 14px;
+      padding-left: 16px;
+      color: #666666;
+      background: #ffffff;
     }
 
     input {

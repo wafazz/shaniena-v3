@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('rests without querying until asked', function () {
-    $admin = queueAdmin('search-order');
+    $admin = adminWith(['search-order']);
     Order::factory()->count(3)->create();
 
     $this->actingAs($admin, 'admin')->get('/admin/search-order')
@@ -15,7 +15,7 @@ it('rests without querying until asked', function () {
 });
 
 it('finds an order by its exact id', function () {
-    $admin = queueAdmin('search-order');
+    $admin = adminWith(['search-order']);
     $order = Order::factory()->create();
     Order::factory()->count(3)->create();
 
@@ -25,7 +25,7 @@ it('finds an order by its exact id', function () {
 });
 
 it('finds an order by customer name, phone or email', function () {
-    $admin = queueAdmin('search-order');
+    $admin = adminWith(['search-order']);
     $order = Order::factory()->create([
         'customer_name' => 'Aisyah',
         'customer_name_last' => 'Binti Rahman',
@@ -42,7 +42,7 @@ it('finds an order by customer name, phone or email', function () {
 });
 
 it('searches every status, including ones no queue shows', function () {
-    $admin = queueAdmin('search-order');
+    $admin = adminWith(['search-order']);
     Order::factory()->status(Order::STATUS_AWAITING_PAYMENT)->create(['customer_name' => 'Farah']);
 
     $this->actingAs($admin, 'admin')->get('/admin/search-order?search=Farah')
@@ -51,11 +51,11 @@ it('searches every status, including ones no queue shows', function () {
 });
 
 it('403s an operator without the search slug', function () {
-    $this->actingAs(queueAdmin('new-order'), 'admin')->get('/admin/search-order')->assertForbidden();
+    $this->actingAs(adminWith(['new-order']), 'admin')->get('/admin/search-order')->assertForbidden();
 });
 
 it('does not drag in orders whose phone merely contains the id digits', function () {
-    $admin = queueAdmin('search-order');
+    $admin = adminWith(['search-order']);
     $wanted = Order::factory()->create();
     // A phone number containing the same digits as the order id.
     Order::factory()->create(['customer_phone' => "+60123{$wanted->id}4567"]);
@@ -66,7 +66,7 @@ it('does not drag in orders whose phone merely contains the id digits', function
 });
 
 it('still matches a phone fragment when it is not an order id', function () {
-    $admin = queueAdmin('search-order');
+    $admin = adminWith(['search-order']);
     Order::factory()->create(['customer_phone' => '+60129998888']);
 
     $this->actingAs($admin, 'admin')->get('/admin/search-order?search=9998888')
