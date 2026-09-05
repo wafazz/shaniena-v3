@@ -25,14 +25,81 @@ use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StockControlController;
 use App\Http\Controllers\Admin\StoreSettingController;
 use App\Http\Controllers\Admin\SupportTicketController;
+use App\Http\Controllers\Shop\AccountController;
+use App\Http\Controllers\Shop\Auth\CustomerAuthController;
+use App\Http\Controllers\Shop\CartController;
+use App\Http\Controllers\Shop\CatalogueController;
+use App\Http\Controllers\Shop\CheckoutController;
+use App\Http\Controllers\Shop\ContentController;
+use App\Http\Controllers\Shop\CountryController;
+use App\Http\Controllers\Shop\HomeController;
+use App\Http\Controllers\Shop\OrderTrackingController;
+use App\Http\Controllers\Shop\ProductController as ShopProductController;
+use App\Http\Controllers\Shop\SupportController;
 use App\Services\OrderQueues;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Welcome', [
-    'laravel' => app()->version(),
-    'php' => PHP_VERSION,
-]))->name('home');
+/*
+|--------------------------------------------------------------------------
+| Storefront
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/', HomeController::class)->name('home');
+
+// The country gate is a page, not a wall. The source bounced every storefront
+// URL back to it until a cookie was set, so shared product links and crawlers
+// both landed on a country picker.
+Route::get('select-country', [CountryController::class, 'show'])->name('shop.country');
+Route::post('select-country', [CountryController::class, 'store'])->name('shop.country.store');
+Route::get('change-country', [CountryController::class, 'change'])->name('shop.country.change');
+
+// Slug routing throughout — the source used /product-details/12.
+Route::get('product/{product:slug}', ShopProductController::class)->name('shop.product');
+Route::get('categories/{category:slug}', [CatalogueController::class, 'category'])->name('shop.category');
+Route::get('brands/{brand:slug}', [CatalogueController::class, 'brand'])->name('shop.brand');
+Route::get('promo-item', [CatalogueController::class, 'promos'])->name('shop.promos');
+Route::get('shop', [CatalogueController::class, 'search'])->name('shop.search');
+
+Route::get('cart', [CartController::class, 'show'])->name('shop.cart');
+Route::post('cart', [CartController::class, 'store'])->name('shop.cart.store');
+Route::put('cart/{line}', [CartController::class, 'update'])->name('shop.cart.update');
+Route::delete('cart/{line}', [CartController::class, 'destroy'])->name('shop.cart.destroy');
+
+Route::get('checkout', [CheckoutController::class, 'show'])->name('shop.checkout');
+Route::post('checkout/address', [CheckoutController::class, 'address'])->name('shop.checkout.address');
+
+Route::get('track-order', OrderTrackingController::class)->name('shop.track');
+Route::get('blog', [ContentController::class, 'blog'])->name('shop.blog');
+Route::get('blog/{post}', [ContentController::class, 'post'])->name('shop.post');
+Route::get('contact', [ContentController::class, 'contact'])->name('shop.contact');
+
+// --- customer accounts ---------------------------------------------------
+Route::middleware('guest:web')->group(function () {
+    Route::get('login', [CustomerAuthController::class, 'showLogin'])->name('shop.login');
+    Route::post('login', [CustomerAuthController::class, 'login'])->name('shop.login.store');
+    Route::get('register', [CustomerAuthController::class, 'showRegister'])->name('shop.register');
+    Route::post('register', [CustomerAuthController::class, 'register'])->name('shop.register.store');
+});
+
+Route::get('verify-email', [CustomerAuthController::class, 'showVerify'])->name('shop.verify');
+Route::post('verify-email', [CustomerAuthController::class, 'verify'])->name('shop.verify.store');
+Route::post('verify-email/resend', [CustomerAuthController::class, 'resend'])->name('shop.verify.resend');
+Route::post('logout', [CustomerAuthController::class, 'logout'])->name('shop.logout');
+
+Route::middleware('auth:web')->group(function () {
+    Route::get('account', [AccountController::class, 'show'])->name('shop.account');
+    Route::put('account', [AccountController::class, 'update'])->name('shop.account.update');
+});
+
+// --- support -------------------------------------------------------------
+Route::get('support', [SupportController::class, 'show'])->name('shop.support');
+Route::post('support', [SupportController::class, 'store'])->name('shop.support.store');
+Route::post('support/reply', [SupportController::class, 'reply'])->name('shop.support.reply');
+
+foreach (['about', 'policy', 'terms'] as $page) {
+    Route::get($page, [ContentController::class, 'page'])->defaults('page', $page)->name("shop.page.{$page}");
+}
 
 /*
 |--------------------------------------------------------------------------

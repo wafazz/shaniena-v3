@@ -53,3 +53,22 @@ it('searches every status, including ones no queue shows', function () {
 it('403s an operator without the search slug', function () {
     $this->actingAs(queueAdmin('new-order'), 'admin')->get('/admin/search-order')->assertForbidden();
 });
+
+it('does not drag in orders whose phone merely contains the id digits', function () {
+    $admin = queueAdmin('search-order');
+    $wanted = Order::factory()->create();
+    // A phone number containing the same digits as the order id.
+    Order::factory()->create(['customer_phone' => "+60123{$wanted->id}4567"]);
+
+    $this->actingAs($admin, 'admin')->get("/admin/search-order?search={$wanted->id}")
+        ->assertInertia(fn ($page) => $page->has('results.data', 1)
+            ->where('results.data.0.reference', $wanted->reference()));
+});
+
+it('still matches a phone fragment when it is not an order id', function () {
+    $admin = queueAdmin('search-order');
+    Order::factory()->create(['customer_phone' => '+60129998888']);
+
+    $this->actingAs($admin, 'admin')->get('/admin/search-order?search=9998888')
+        ->assertInertia(fn ($page) => $page->has('results.data', 1));
+});

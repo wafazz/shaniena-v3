@@ -121,21 +121,29 @@
 
 ## Phase 5: Storefront — Vue + Inertia SSR *(23 screens)*
 
-- [ ] **5.1** Storefront layout: header, nav, footer (from `store_settings`), PWA meta
-- [ ] **5.2** Country selector landing page
-- [ ] **5.3** Homepage: slider, category carousel (Swiper), featured products
-- [ ] **5.4** Category / brand / promo listing pages
-- [ ] **5.5** Product details: variant selection, auto-select first in-stock variant, image gallery
-- [ ] **5.6** Search + slug routing
-- [ ] **5.7** Cart: add/update/remove, cart locking
-- [ ] **5.8** Checkout: address form, cookie persistence (30-day), courier selection, postage + COD calc
-- [ ] **5.9** Blog listing + detail with unique-view counter (IP based)
-- [ ] **5.10** Customer account: login, register, phone verification, order history
-- [ ] **5.11** Support ticket (customer side)
-- [ ] **5.12** Static pages: about, policy, terms, contact (Google Maps embed)
-- [ ] **5.13** Referral flow
-- [ ] **5.14** Inertia SSR verification — crawler sees rendered HTML on product/category pages
-- [ ] **5.15** Re-implement PWA: manifest, service worker, install banner (Android + iOS)
+> **Visual direction, approved 2026-09-05: port Ashion faithfully.** The shop runs on
+> **Ashion** (Colorlib, Bootstrap 4 + jQuery). Its SCSS source is vendored into
+> `resources/sass/storefront/` and compiled by our pipeline; Owl Carousel, SlickNav,
+> Magnific Popup and mixitup do not come across. Storefront and console stay visually
+> separate and ship as **two bundles** — the shop is 189 kB CSS against the console's 333 kB,
+> and neither downloads the other's framework.
+
+- [x] **5.1** Storefront layout — Ashion header, nav (brand/category dropdowns from the DB), offcanvas mobile menu, search overlay, cart badge and footer from `store_settings`. Separate Vite entry, root Blade view and Inertia `rootView()` switch.
+- [x] **5.2** Country selector — a page, not a gate. The source made it the site root and bounced every storefront URL back to it until a cookie was set, so shared product links and crawlers both landed on a picker. Switching country now also empties the basket, which the source left priced in the old currency.
+- [~] **5.3** Homepage — categories, New Arrival, Top Best Seller and Promo rows, service tiles. 7 Pest tests. *Slider still to do; the category row is a grid until Swiper goes in.*
+- [x] **5.4** Category / brand / promo listings — server-paged at 24 with sort by newest, price or name. The source had **no LIMIT at all** and sorted `created_at` ascending, so a listing led with the oldest stock in the catalogue.
+- [x] **5.5** Product details — opens on the first in-stock variant (decided server-side), gallery, stock and purchase cap per variant, related products. Out-of-stock variants are disabled rather than selectable-then-blocked.
+- [x] **5.6** Search + slug routing — every storefront URL is a slug (`/product/hydra-glow-cleanser`), not the source's `/product-details/12`.
+- [x] **5.7** Cart — add, update, remove. The purchase cap applies to the basket total, not one request, so adding one at a time no longer walks past it. *Cart locking belongs with the payment flow in Phase 6.*
+- [~] **5.8** Checkout — address form with 30-day opt-in persistence, courier choice, postage and COD computed **server-side** in `App\Services\Storefront\Basket`. *Payment initiation waits on Phase 6.*
+- [x] **5.9** Blog listing + detail with the per-IP view counter.
+- [x] **5.10** Customer account — sign in, register, **email** verification (the source's "member verify" was email, not phone), and order history. The source had all of this commented out and unreachable, with dead links to `/forgot-password` and `/resend-verification`. Resend gives the same answer either way, so it cannot enumerate customers. 13 Pest tests.
+- [x] **5.11** Support tickets (customer side) — open a ticket, look one up by number **and** matching email, reply. Replying puts a resolved ticket back in the queue.
+- [x] **5.12** Static pages — about, policy, terms, contact. *No Maps embed: it needs an API key and the source hardcoded none.*
+- [ ] **5.13** Referral flow — *not built: there is no referral implementation in the source to port, and no schema for one.*
+- [x] **5.14** Inertia SSR — verified: a product page returns rendered markup, one `<title>`, an absolute `<link rel=canonical>` and Open Graph tags. SSR resolves only `Pages/Shop/**`, so the console never enters the SSR bundle. Cart, checkout and account are `noindex`.
+      **Why it was silently off:** a stale `public/hot` file from a killed `npm run dev` made `Vite::isRunningHot()` true, so Inertia dispatched SSR to a dev server that was not running and fell back to client rendering without an error.
+- [~] **5.15** PWA — manifest, service worker and offline page. Product images are deliberately **not** cache-first: the source cached them that way, so a re-uploaded photo never reached anyone who had seen the old one. Admin and gateway hosts are never cached. *Install banner still to do; icon PNGs need generating.*
 
 ## Phase 6: Payments & Shipping Integrations
 
@@ -270,6 +278,20 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 49 | *Sales Statistic* folded into *Sales Report* | The source split charts and tables across two pages; one screen carries both. |
 | 50 | Every admin route binds by id | Category, Brand, Product, PickupHub and SupportTicket all set `getRouteKeyName()` to a slug/code for public URLs — and those values are editable on the very screens that save them. |
 | 51 | `LegacyHashUserProvider::isLegacySha256()` made public and reused | `Hash::check()` throws outright on a non-bcrypt hash, so the change-password screen has to test for a legacy hash first — the same order the auth provider uses. Restating the regex would have let the two drift. |
+| 52 | Storefront and console are two Vite bundles with two root views | A customer downloading CoreUI, or an admin downloading Ashion, is pure waste. `HandleInertiaRequests::rootView()` picks by path. |
+| 53 | Storefront primary is `#ca1515`, not `#e53637` | The plan recorded `#e53637` as "carried over from the source storefront", but that value is the PWA `theme-color` **meta tag**. The CSS primary customers actually see is Ashion's own `#ca1515`. Both are kept where they belong; the console is unaffected. |
+| 54 | Bootstrap reboot + grid imported under Ashion, with `$link-decoration: none` | Ashion is a Bootstrap **4** theme and assumes those layers exist. Bootstrap 5 also underlines links by default where 4 did not, so without the override the whole shop rendered underlined and in Bootstrap blue. |
+| 55 | Best-seller ranking resolves ids in a second query | MariaDB rejects `LIMIT` inside an `IN` subquery. The ordering is replayed with `FIELD()`. |
+| 56 | Order search: an exact id match wins outright | A digits-only term also LIKE-matched phone and email, so typing an order number returned unrelated orders alongside it. Caught by a factory collision, not by design. |
+| 57 | **Checkout totals are computed server-side, never read from the request** | The source computed subtotal, postage and COD *in the checkout view*, wrote them to `$_SESSION`, and let the payment controllers bill whatever was there — so anything that could render checkout could set the amount charged. `App\Services\Storefront\Basket` recalculates from the catalogue every time. |
+| 58 | The basket is keyed to a 30-day `cart_token` cookie, not the session id | The source used the raw session id, so signing in — which regenerates the session — silently orphaned the customer's cart, and so did a session timeout mid-shop. |
+| 59 | Shipping zone decided by whether a country has states configured | The source keyed on `country == "1"` in several places, which breaks the moment a second zoned country is added. |
+| 60 | `cart_token` and `country_id` cookies are exempt from encryption | Both are opaque and non-secret — a 40-char random token and a country id. Guessing a token yields an empty cart. The source stored its country cookie in the clear too. |
+| 61 | Test `SESSION_DRIVER` is `file`, and `TestCase::keep()` carries the shop cookies | The array driver forgets the session between requests, so no multi-request flow — cart, checkout, country gate — could be tested at all. |
+| 62 | `Member` status and verification are string enums, not integers | The Phase 3 model cast both to `integer`, so every comparison read 0 — `scopeActive()` matched nothing and `isVerified()` was always false. The columns are `enum('inactive','active','banned')` and `enum('unconfirm','confirm')`. |
+| 63 | SSR resolves only `Pages/Shop/**` | SSR exists for SEO and first paint on shop pages. The console is behind a login and indexed by nobody, so pulling CoreUI and every admin page into the SSR bundle would only slow the server. |
+| 64 | `public/hot` is a build artefact, never committed | A stale one silently disabled SSR *and* made `@vite` emit source paths instead of hashed build URLs — which had a test passing for the wrong reason. |
+| 65 | Canonical URLs come from the server, absolute and query-free | A filtered listing is the same page as the unfiltered one, and a client-derived canonical is wrong under SSR. |
 
 ## Verification Log
 
@@ -329,3 +351,22 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 2026-09-05 | Sidebar link crawl in a real browser | 31 links, **0 dead ends** ✓ |
 | 2026-09-05 | Legacy SHA-256 accepted as current password | verified, then stored as bcrypt ✓ |
 | 2026-09-05 | Pest suite after Phase 4 | 175 passed, 708 assertions ✓ |
+| 2026-09-05 | Storefront serves its own bundle, not the console's | asserted `storefront.js` present and `app.js` absent ✓ |
+| 2026-09-05 | Ashion CSS applies to the ported Vue markup | header, section titles, product cards and prices render as the template ✓ |
+| 2026-09-05 | Storefront home at 1280 and 390 | captured, 3 defects found and fixed ✓ |
+| 2026-09-05 | Pest suite after 5.1 + 5.3 | 184 passed, 791 assertions ✓ |
+| 2026-09-05 | Basket priced from the database, not the request | line price tampered to 0.01, subtotal still 119.80 ✓ |
+| 2026-09-05 | Purchase cap holds across separate additions | 2 + 2 against a cap of 3 rejected ✓ |
+| 2026-09-05 | One session cannot touch another's cart line | 403 ✓ |
+| 2026-09-05 | Postage rounds extra weight up to the whole kilo | 0.9/1.0kg → 6.50, 1.1/2.0kg → 9.50, 2.1kg → 12.50 ✓ |
+| 2026-09-05 | COD benchmark charges the higher fee at the threshold | 99.99 → 10.00, 100.00 → 8.00 ✓ |
+| 2026-09-05 | Tracking needs order number **and** matching email | wrong email returns nothing ✓ |
+| 2026-09-05 | Every storefront route responds | 9 routes, all 200 ✓ |
+| 2026-09-05 | Pest suite after Phase 5 slice | 199 passed, 862 assertions ✓ |
+| 2026-09-05 | Customer registers unverified, code emailed | account inactive until verified ✓ |
+| 2026-09-05 | Unverified and banned customers cannot sign in | redirected, session not left open ✓ |
+| 2026-09-05 | Account page shows only that customer's orders | 2 of 3 ✓ |
+| 2026-09-05 | Ticket needs its number **and** matching email | wrong email returns nothing ✓ |
+| 2026-09-05 | SSR renders a product page for a crawler | markup + single title + absolute canonical + og tags ✓ |
+| 2026-09-05 | Storefront serves only its own bundle | admin chunk absent from the HTML ✓ |
+| 2026-09-05 | Pest suite after Phase 5 | 217 passed, 953 assertions ✓ |

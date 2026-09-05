@@ -1,0 +1,15 @@
+{
+    "name": "Shaniena",
+    "short_name": "Shaniena",
+    "description": "Shop Shaniena skincare and body care.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#e53637",
+    "icons": [
+        { "src": "/storefront/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/storefront/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/storefront/img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}

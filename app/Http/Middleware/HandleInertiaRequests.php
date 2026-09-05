@@ -20,6 +20,16 @@ class HandleInertiaRequests extends Middleware
     protected $rootView = 'app';
 
     /**
+     * The console and the shop are separate bundles, so they need separate
+     * root templates — otherwise every customer downloads CoreUI and every
+     * admin downloads Ashion.
+     */
+    public function rootView(Request $request): string
+    {
+        return $request->is('admin', 'admin/*') ? 'app' : 'storefront';
+    }
+
+    /**
      * Determines the current asset version.
      *
      * @see https://inertiajs.com/asset-versioning
@@ -66,6 +76,20 @@ class HandleInertiaRequests extends Middleware
 
             'store' => fn () => [
                 'name' => app(StoreSettings::class)->get('store_name', 'Shaniena'),
+            ],
+
+            // Storefront-wide props. Lazy, so an admin request never pays for
+            // them, and vice versa.
+            'shop' => $request->is('admin', 'admin/*') ? null : fn () => [
+                'country' => ($country = $request->attributes->get('storefront.country'))
+                    ? ['id' => $country->id, 'name' => $country->name, 'sign' => $country->sign]
+                    : null,
+                'nav' => HandleStorefrontRequests::navigation(),
+                // Absolute, and without the query string: a filtered listing is
+                // the same page as the unfiltered one.
+                'canonical' => $request->url(),
+                'cartCount' => HandleStorefrontRequests::cartCount($request),
+                'footer' => HandleStorefrontRequests::footer(app(StoreSettings::class)),
             ],
 
             'flash' => [

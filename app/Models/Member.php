@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -15,7 +16,20 @@ class Member extends Authenticatable
 
     protected $table = 'members';
 
-    public const STATUS_ACTIVE = 1;
+    /**
+     * `status` and `verification_status` are string enums in the schema, not
+     * integers. Casting them to int made every comparison read 0, so
+     * scopeActive() matched nothing and isVerified() was always false.
+     */
+    public const STATUS_INACTIVE = 'inactive';
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_BANNED = 'banned';
+
+    public const UNVERIFIED = 'unconfirm';
+
+    public const VERIFIED = 'confirm';
 
     protected $fillable = [
         'email', 'password', 'name', 'phone', 'address_1', 'address_2',
@@ -27,9 +41,9 @@ class Member extends Authenticatable
     protected function casts(): array
     {
         return [
-            'status' => 'integer',
-            'verification_status' => 'integer',
             'password' => 'hashed',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
         ];
     }
 
@@ -38,8 +52,23 @@ class Member extends Authenticatable
         return $query->where('status', self::STATUS_ACTIVE);
     }
 
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isBanned(): bool
+    {
+        return $this->status === self::STATUS_BANNED;
+    }
+
     public function isVerified(): bool
     {
-        return (int) $this->verification_status === 1;
+        return $this->verification_status === self::VERIFIED;
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'customer_email', 'email');
     }
 }

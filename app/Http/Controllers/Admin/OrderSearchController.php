@@ -34,20 +34,23 @@ class OrderSearchController extends Controller
     /** @return array<string, mixed> */
     private function search(string $term): array
     {
+        // An exact order id wins outright. Otherwise a digits-only term also
+        // matches any phone or email containing those digits, so typing an
+        // order number returned a pile of unrelated orders alongside it.
+        $exactId = ctype_digit($term) && Order::whereKey((int) $term)->exists()
+            ? (int) $term
+            : null;
+
         $orders = Order::query()
             ->with(['lines' => fn ($q) => $q->active()->with('product:id,name')])
-            ->where(function ($query) use ($term) {
-                // An all-digit term is an order id; anything else is a person.
-                if (ctype_digit($term)) {
-                    $query->orWhere('id', (int) $term);
-                }
-
-                $query
+            ->when($exactId, fn ($query) => $query->whereKey($exactId))
+            ->unless($exactId, fn ($query) => $query->where(function ($inner) use ($term) {
+                $inner
                     ->orWhere('customer_name', 'like', "%{$term}%")
                     ->orWhere('customer_name_last', 'like', "%{$term}%")
                     ->orWhere('customer_phone', 'like', "%{$term}%")
                     ->orWhere('customer_email', 'like', "%{$term}%");
-            })
+            }))
             ->orderByDesc('created_at')
             ->paginate(self::PER_PAGE)
             ->withQueryString();

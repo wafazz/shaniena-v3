@@ -1,0 +1,61 @@
+// ---------------------------------------------------------------------------
+// Shaniena storefront
+//
+// A faithful port of the Ashion template (Colorlib) the shop runs on today —
+// same layout, spacing and type, rebuilt as Vue components. The jQuery plugins
+// it shipped with (Owl Carousel, SlickNav, Magnific Popup, mixitup) do not
+// come across; Swiper and Vue state replace them.
+//
+// Deliberately separate from the admin console's CoreUI bundle: different
+// people, different job, and a shop styled like an admin panel converts worse.
+// ---------------------------------------------------------------------------
+
+// Ashion's own primary is #ca1515 — that is the red customers actually see.
+// #e53637 is the PWA theme-color from the source's <meta>, not the CSS brand.
+$primary-color: #ca1515;
+
+// Ashion is a Bootstrap theme: it assumes reboot, the grid and the utility
+// classes are already loaded, and styles on top of them. Only those layers are
+// pulled in — the components come from Ashion itself.
+// Bootstrap 5 underlines every link by default; Bootstrap 4, which Ashion was
+// authored against, did not. Without these the whole shop renders underlined
+// and in Bootstrap's blue instead of Ashion's own colours.
+$link-decoration: none;
+$link-color: #111111;
+$link-hover-color: $primary-color;
+$font-family-sans-serif: 'Montserrat', -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/utilities";
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+@import "bootstrap/scss/utilities/api";
+
+@import "storefront/variable";
+@import "storefront/mixins";
+
+@import "storefront/base";
+@import "storefront/header";
+@import "storefront/home-page";
+@import "storefront/footer";
+@import "storefront/breadcrumb";
+@import "storefront/categories";
+@import "storefront/product";
+@import "storefront/shop";
+@import "storefront/product-details";
+@import "storefront/shop-cart";
+@import "storefront/checkout";
+@import "storefront/blog";
+@import "storefront/blog-sidebar";
+@import "storefront/blog-details";
+@import "storefront/contact";
+@import "storefront/responsive";
+
+@import "storefront/elegant-icons.css";
+@import "storefront/font-awesome.min.css";
