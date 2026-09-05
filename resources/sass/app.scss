@@ -1,7 +1,207 @@
+// ---------------------------------------------------------------------------
+// Shaniena admin console
+//
+// CoreUI is the design system (20-design-protocol.md §4): override its
+// variables once, here, and never fight it with per-page utility classes.
+// ---------------------------------------------------------------------------
+
 // Brand tokens — carried over from the source storefront
 $primary: #e53637;
+
+// A filled button needs a slightly darker red than the brand mark does.
+// White on #e53637 is 4.27:1, under the 4.5:1 AA floor for 16px text, so
+// Bootstrap's contrast function picks BLACK text — accessible, but it reads
+// as broken on a primary CTA. #cc2f30 keeps the brand hue and takes white to
+// 5.2:1. The brand red itself is untouched: it stays on badges, links and the
+// focus ring, where it sits on a light ground.
+$brand-interactive: #cc2f30;
 $font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-@import "bootstrap/scss/bootstrap";
+// Working density. The console is stared at all day; the stock Bootstrap
+// rhythm is sized for marketing pages.
+$border-radius: 0.25rem;
+$table-cell-padding-y: 0.5rem;
+$table-cell-padding-x: 0.75rem;
+$input-btn-padding-y: 0.4rem;
+$input-btn-font-size: 0.9rem;
+
+// CoreUI 5 is a full Bootstrap fork — reboot, grid, forms, tables, the lot.
+// Importing bootstrap/scss/bootstrap alongside it shipped the whole framework
+// twice AND locked Sass's $prefix to `bs-`, because Bootstrap sets it first
+// and CoreUI's own `$prefix: cui- !default` then cannot win. That silently
+// made every --cui-* override below a no-op. CoreUI only, from here.
 @import "@coreui/coreui/scss/coreui";
 @import "@vueform/multiselect/themes/default.css";
+
+:root {
+  --brand: #{$primary};
+
+  // Sidebar: a dark neutral with a red bias so it sits under the accent
+  // rather than competing with it.
+  --cui-sidebar-bg: #1f1719;
+  --cui-sidebar-nav-link-color: #cbbfc1;
+  --cui-sidebar-nav-link-hover-bg: #2c2224;
+  --cui-sidebar-nav-link-hover-color: #ffffff;
+  --cui-sidebar-nav-link-active-bg: #{$primary};
+  --cui-sidebar-nav-link-active-color: #ffffff;
+  --cui-sidebar-nav-title-color: #8a7c7f;
+  --cui-sidebar-brand-bg: #1a1315;
+}
+
+// --- primary action ------------------------------------------------------
+.btn-primary {
+  --cui-btn-bg: #{$brand-interactive};
+  --cui-btn-border-color: #{$brand-interactive};
+  --cui-btn-color: #fff;
+  --cui-btn-hover-bg: #{darken($brand-interactive, 6%)};
+  --cui-btn-hover-border-color: #{darken($brand-interactive, 8%)};
+  --cui-btn-hover-color: #fff;
+  --cui-btn-active-bg: #{darken($brand-interactive, 10%)};
+  --cui-btn-active-border-color: #{darken($brand-interactive, 12%)};
+  --cui-btn-active-color: #fff;
+  --cui-btn-disabled-bg: #{$brand-interactive};
+  --cui-btn-disabled-border-color: #{$brand-interactive};
+  --cui-btn-disabled-color: #fff;
+}
+
+// --- numbers behave like numbers (§3.5 of the design protocol) -------------
+.num,
+.table td.num,
+.table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.code,
+.table td.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+}
+
+// --- layout --------------------------------------------------------------
+// CoreUI sets --cui-sidebar-occupy-start on the fixed sidebar's siblings, but
+// leaves the wrapper rule that consumes it to the template. Without this the
+// content sits underneath the sidebar on desktop.
+.wrapper {
+  padding-inline-start: var(--cui-sidebar-occupy-start, 0);
+  transition: padding 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrapper { transition: none; }
+}
+
+// --- sidebar -------------------------------------------------------------
+.sidebar-brand-full {
+  max-height: 34px;
+  width: auto;
+}
+
+// Queue badges: a waiting queue is the operator's work signal, so a non-zero
+// count is loud and a zero one is not.
+.nav-count {
+  margin-left: auto;
+  min-width: 1.9rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.14rem 0.36rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.09);
+  color: #a99ea0;
+
+  &.is-waiting {
+    background: #{$primary};
+    color: #fff;
+  }
+
+  &.is-loading {
+    color: #6f6467;
+  }
+}
+
+// --- auth ----------------------------------------------------------------
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+  background: var(--cui-tertiary-bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 27rem;
+}
+
+// --- tables --------------------------------------------------------------
+.select-col { width: 2.5rem; }
+.actions-col { width: 1%; }
+
+.table td { vertical-align: top; }
+
+// Below this width the table scrolls inside .table-responsive rather than
+// crushing every column — the source did the same with min-width: 700px.
+// Without it a phone gets "Hydra Glow Cleanser" broken over four lines.
+// Width comes from the component's minWidth prop so a table inside a narrow
+// card can opt out; the class stays for the shared rules below.
+.data-table {
+  min-width: 0;
+}
+
+// A date, a stage button and a money figure are all single tokens: breaking
+// them mid-value costs a row of height and reads as a layout bug.
+.nowrap,
+.data-table .btn {
+  white-space: nowrap;
+}
+
+// `+2 more` is a disclosure, not the primary action — the accent is reserved.
+.btn-link.disclosure {
+  --cui-btn-color: var(--cui-secondary-color);
+  --cui-btn-hover-color: var(--cui-body-color);
+  text-decoration: underline;
+}
+
+// --- charts --------------------------------------------------------------
+.chart-holder {
+  height: 16rem;
+
+  > div,
+  canvas {
+    height: 100% !important;
+  }
+}
+
+// --- states --------------------------------------------------------------
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--cui-secondary-color);
+}
+
+.skeleton {
+  display: block;
+  height: 0.85rem;
+  border-radius: 0.2rem;
+  background: linear-gradient(90deg, var(--cui-tertiary-bg) 25%, var(--cui-secondary-bg) 37%, var(--cui-tertiary-bg) 63%);
+  background-size: 400% 100%;
+  animation: skeleton 1.4s ease infinite;
+}
+
+@keyframes skeleton {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+// Keyboard focus must always be visible — almost no generated admin UI ships
+// this, and its absence is felt immediately by anyone working at speed.
+:focus-visible {
+  outline: 2px solid #{$primary};
+  outline-offset: 2px;
+}

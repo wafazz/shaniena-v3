@@ -106,6 +106,15 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        // Separate token table: password_reset_tokens is keyed by email alone,
+        // and the same address can exist in both members and member_hq.
+        'admins' => [
+            'provider' => 'admins',
+            'table' => 'admin_password_reset_tokens',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
     ],
 
     /*

@@ -1,5 +1,31 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\Auth\LoginController;
+use App\Http\Controllers\Admin\Auth\PasswordResetController;
+use App\Http\Controllers\Admin\BlogController;
+use App\Http\Controllers\Admin\BrandController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CountrySettingController;
+use App\Http\Controllers\Admin\CourierSettingController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LogoSettingController;
+use App\Http\Controllers\Admin\OrderQueueController;
+use App\Http\Controllers\Admin\OrderSearchController;
+use App\Http\Controllers\Admin\OrderStatusController;
+use App\Http\Controllers\Admin\PageContentController;
+use App\Http\Controllers\Admin\PaymentSettingController;
+use App\Http\Controllers\Admin\PickupHubController;
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProfileController;
+use App\Http\Controllers\Admin\SalesReportController;
+use App\Http\Controllers\Admin\ShippingCostController;
+use App\Http\Controllers\Admin\SliderController;
+use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\StockControlController;
+use App\Http\Controllers\Admin\StoreSettingController;
+use App\Http\Controllers\Admin\SupportTicketController;
+use App\Services\OrderQueues;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -7,3 +33,198 @@ Route::get('/', fn () => Inertia::render('Welcome', [
     'laravel' => app()->version(),
     'php' => PHP_VERSION,
 ]))->name('home');
+
+/*
+|--------------------------------------------------------------------------
+| Admin console
+|--------------------------------------------------------------------------
+|
+| Every authenticated route carries its role_access slug through the `page`
+| middleware — the source relied on ad-hoc roleVerify() calls inside views,
+| which was easy to forget and is what Phase 7.4 has to close.
+|
+*/
+
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('guest:admin')->group(function () {
+        Route::get('login', [LoginController::class, 'show'])->name('login');
+        Route::post('login', [LoginController::class, 'store'])->name('login.store');
+
+        Route::get('forgot-password', [PasswordResetController::class, 'showRequestForm'])->name('password.request');
+        Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+        Route::get('reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
+        Route::post('reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
+    });
+
+    Route::middleware('auth:admin')->group(function () {
+        Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+
+        // Own profile and password: no role_access slug, because every admin
+        // can always reach their own account. The source did the same.
+        Route::get('profile', [ProfileController::class, 'edit'])->name('profile');
+        Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::get('password', [ProfileController::class, 'editPassword'])->name('password');
+        Route::put('password', [ProfileController::class, 'updatePassword'])->name('password.update');
+
+        Route::get('dashboard', DashboardController::class)
+            ->middleware('page:dashboard')
+            ->name('dashboard');
+
+        Route::get('search-order', OrderSearchController::class)
+            ->middleware('page:search-order')
+            ->name('orders.search');
+
+        // One controller, seven routes — each carries its own role_access slug
+        // so a Staff Logistic account granted only `new-order` cannot reach
+        // `database-order` by typing the URL.
+        foreach (OrderQueues::slugs() as $slug) {
+            Route::get($slug, [OrderQueueController::class, 'index'])
+                ->defaults('queue', $slug)
+                ->middleware("page:{$slug}")
+                ->name('orders.'.$slug);
+        }
+
+        Route::post('orders/{order}/status', [OrderStatusController::class, 'update'])
+            ->middleware('page:new-order')
+            ->name('orders.status');
+
+        Route::post('orders/status', [OrderStatusController::class, 'bulkUpdate'])
+            ->middleware('page:new-order')
+            ->name('orders.status.bulk');
+
+        Route::get('stock-control', [StockControlController::class, 'index'])
+            ->middleware('page:stock-control')
+            ->name('stock.index');
+
+        Route::post('stock-control/{variant}/adjust', [StockControlController::class, 'adjust'])
+            ->middleware('page:stock-control')
+            ->name('stock.adjust');
+
+        Route::middleware('page:new-product')->group(function () {
+            Route::get('new-product', [ProductController::class, 'create'])->name('products.create');
+            Route::post('products', [ProductController::class, 'store'])->name('products.store');
+            // Bound by id, not slug: Product::getRouteKeyName() is `slug` for
+            // storefront URLs, but the slug is editable on this very form —
+            // saving a new one would move the page out from under the operator.
+            Route::get('products/{product:id}/edit', [ProductController::class, 'edit'])->name('products.edit');
+            Route::put('products/{product:id}', [ProductController::class, 'update'])->name('products.update');
+        });
+
+        // Admin routes bind by id throughout. Category, Brand, Product,
+        // PickupHub and SupportTicket all set getRouteKeyName() to a
+        // slug/code for public URLs — and those values are editable on the
+        // very screens that save them.
+        // --- catalogue --------------------------------------------------
+        Route::middleware('page:category-product')->group(function () {
+            Route::get('category-product', [CategoryController::class, 'index'])->name('categories.index');
+            Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
+            Route::post('categories/{category:id}', [CategoryController::class, 'update'])->name('categories.update');
+            Route::delete('categories/{category:id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+        });
+
+        Route::middleware('page:brand-product')->group(function () {
+            Route::get('brand-product', [BrandController::class, 'index'])->name('brands.index');
+            Route::post('brands', [BrandController::class, 'store'])->name('brands.store');
+            Route::post('brands/{brand:id}', [BrandController::class, 'update'])->name('brands.update');
+            Route::delete('brands/{brand:id}', [BrandController::class, 'destroy'])->name('brands.destroy');
+        });
+
+        // --- content ------------------------------------------------------
+        Route::middleware('page:slider-setting')->group(function () {
+            Route::get('slider-setting', [SliderController::class, 'index'])->name('sliders.index');
+            Route::post('sliders', [SliderController::class, 'store'])->name('sliders.store');
+            Route::put('sliders/{slider}', [SliderController::class, 'update'])->name('sliders.update');
+            Route::post('sliders/reorder', [SliderController::class, 'reorder'])->name('sliders.reorder');
+            Route::delete('sliders/{slider}', [SliderController::class, 'destroy'])->name('sliders.destroy');
+        });
+
+        Route::middleware('page:announcement-blog')->group(function () {
+            Route::get('announcement-blog', [BlogController::class, 'index'])->name('blog.index');
+            Route::post('blog', [BlogController::class, 'store'])->name('blog.store');
+            Route::put('blog/{post}', [BlogController::class, 'update'])->name('blog.update');
+            Route::delete('blog/{post}', [BlogController::class, 'destroy'])->name('blog.destroy');
+        });
+
+        // --- settings -----------------------------------------------------
+        Route::middleware('page:store-setting')->group(function () {
+            Route::get('store-setting', [StoreSettingController::class, 'edit'])->name('settings.store');
+            Route::put('store-setting', [StoreSettingController::class, 'update'])->name('settings.store.update');
+        });
+
+        Route::middleware('page:delivery-charge')->group(function () {
+            Route::get('delivery-charge', [ShippingCostController::class, 'edit'])->name('settings.shipping');
+            Route::post('delivery-charge/postage', [ShippingCostController::class, 'savePostage'])->name('settings.postage.save');
+            Route::post('delivery-charge/cod', [ShippingCostController::class, 'saveCod'])->name('settings.cod.save');
+        });
+
+        Route::middleware('page:payment-setting')->group(function () {
+            Route::get('payment-setting', [PaymentSettingController::class, 'edit'])->name('settings.payments');
+            Route::put('payment-setting/senangpay', [PaymentSettingController::class, 'updateSenangPay'])->name('settings.payments.senangpay');
+            Route::put('payment-setting/bayarcash', [PaymentSettingController::class, 'updateBayarcash'])->name('settings.payments.bayarcash');
+            Route::put('payment-setting/stripe', [PaymentSettingController::class, 'updateStripe'])->name('settings.payments.stripe');
+        });
+
+        Route::middleware('page:dhl-setting')->group(function () {
+            Route::get('dhl-setting', [CourierSettingController::class, 'dhl'])->name('settings.dhl');
+            Route::put('dhl-setting', [CourierSettingController::class, 'updateDhl'])->name('settings.dhl.update');
+        });
+
+        Route::middleware('page:jt-express')->group(function () {
+            Route::get('jt-express', [CourierSettingController::class, 'jt'])->name('settings.jt');
+            Route::put('jt-express', [CourierSettingController::class, 'updateJt'])->name('settings.jt.update');
+        });
+
+        // The three single-row storefront pages share one controller.
+        foreach (['policy' => 'setting-policy', 'terms' => 'setting-terms', 'about-us' => 'setting-about-us'] as $page => $slug) {
+            Route::get($slug, [PageContentController::class, 'edit'])
+                ->defaults('page', $page)->middleware("page:{$slug}")->name('pages.'.$page);
+            Route::put($slug, [PageContentController::class, 'update'])
+                ->defaults('page', $page)->middleware("page:{$slug}")->name('pages.'.$page.'.update');
+        }
+
+        Route::middleware('page:logo-setting')->group(function () {
+            Route::get('logo-setting', [LogoSettingController::class, 'index'])->name('logo.index');
+            Route::post('logo-setting', [LogoSettingController::class, 'store'])->name('logo.store');
+            Route::post('logo-setting/{logo:id}/default', [LogoSettingController::class, 'makeDefault'])->name('logo.default');
+            Route::delete('logo-setting/{logo:id}', [LogoSettingController::class, 'destroy'])->name('logo.destroy');
+        });
+
+        Route::middleware('page:list-country')->group(function () {
+            Route::get('list-country', [CountrySettingController::class, 'index'])->name('countries.index');
+            Route::post('countries', [CountrySettingController::class, 'store'])->name('countries.store');
+            Route::put('countries/{country}', [CountrySettingController::class, 'update'])->name('countries.update');
+            Route::get('countries/{country}/states', [CountrySettingController::class, 'states'])->name('countries.states');
+            Route::post('countries/{country}/states', [CountrySettingController::class, 'saveState'])->name('countries.states.save');
+        });
+
+        // --- logistics ----------------------------------------------------
+        Route::middleware('page:pickup-hub')->group(function () {
+            Route::get('pickup-hub', [PickupHubController::class, 'index'])->name('hubs.index');
+            Route::post('pickup-hub', [PickupHubController::class, 'store'])->name('hubs.store');
+            Route::put('pickup-hub/{hub:id}', [PickupHubController::class, 'update'])->name('hubs.update');
+        });
+
+        // --- support & reporting -------------------------------------------
+        Route::middleware('page:support/tickets')->group(function () {
+            Route::get('support/tickets', [SupportTicketController::class, 'index'])->name('tickets.index');
+            Route::get('support/tickets/{ticket:id}', [SupportTicketController::class, 'show'])->name('tickets.show');
+            Route::post('support/tickets/{ticket:id}/reply', [SupportTicketController::class, 'reply'])->name('tickets.reply');
+        });
+
+        Route::get('sales-report', SalesReportController::class)
+            ->middleware('page:sales-report')
+            ->name('reports.sales');
+
+        Route::get('activity-log', ActivityLogController::class)
+            ->middleware('page:activity-log')
+            ->name('reports.activity');
+
+        Route::middleware('page:hq-staff')->group(function () {
+            Route::get('hq-staff', [StaffController::class, 'index'])->name('staff.index');
+            Route::post('hq-staff', [StaffController::class, 'store'])->name('staff.store');
+            Route::get('hq-staff/{staff}', [StaffController::class, 'edit'])->name('staff.edit');
+            Route::put('hq-staff/{staff}', [StaffController::class, 'update'])->name('staff.update');
+            Route::post('hq-staff/{staff}/permissions', [StaffController::class, 'setPermission'])->name('staff.permissions');
+        });
+    });
+});

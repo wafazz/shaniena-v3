@@ -2,6 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\MemberHq;
+use App\Services\AdminNavigation;
+use App\Services\StoreSettings;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,9 +38,40 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $admin = $request->user('admin');
+
         return [
             ...parent::share($request),
-            //
+
+            'auth' => [
+                'admin' => $admin instanceof MemberHq ? [
+                    'id' => $admin->id,
+                    'name' => $admin->full_name,
+                    'email' => $admin->email,
+                    'role' => $admin->roleLabel(),
+                ] : null,
+            ],
+
+            // The sidebar is rebuilt per request but only for signed-in
+            // admins, and lazily so partial reloads don't pay for it.
+            'nav' => $admin instanceof MemberHq
+                ? fn () => app(AdminNavigation::class)->for($admin)
+                : null,
+
+            // Topbar search is a permitted action, not a nav entry — it moved
+            // out of the sidebar, so it needs its own capability flag.
+            'can' => [
+                'searchOrders' => $admin instanceof MemberHq && $admin->can('access', 'search-order'),
+            ],
+
+            'store' => fn () => [
+                'name' => app(StoreSettings::class)->get('store_name', 'Shaniena'),
+            ],
+
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+            ],
         ];
     }
 }

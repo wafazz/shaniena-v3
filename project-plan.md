@@ -59,47 +59,65 @@
 - [ ] **2.10** Add foreign keys + indexes — *deferred until after data import; 11 source FKs preserved. Adding new constraints before the data lands would fail on orphaned rows.*
 - [x] **2.11** Drop dead tables (`sbtest1`, `all`, duplicate `dhl_token_test`) — log each removal
 - [x] **2.12** Datetime columns as `datetime` (never `timestamp`) per project convention
-- [ ] **2.13** *(deferred by decision)* Build data-import command `php artisan shaniena:import` from source DB → new schema
-- [ ] **2.14** *(deferred by decision)* Run import; row-count reconciliation report old vs new for every table
-- [ ] **2.15** *(deferred by decision)* Seeders for lookup/reference data (countries, states, postcodes)
+- [x] **2.16** Migrations for `cod_charges`, `bayarcash_api`, `bayarcash_transactions` — DDL found in the source project root (`migration_cod_charges.sql`, `migration_bayarcash.sql`), so no column types were guessed. `sql/bayarcash_alter_columns.sql` folded in.
+- [ ] **2.13** *(blocked — needs the live DB, see Open Risk 1)* Build data-import command `php artisan shaniena:import` from source DB → new schema
+- [ ] **2.14** *(blocked — needs 2.13)* Run import; row-count reconciliation report old vs new for every table
+- [x] **2.15** Seeders for lookup/reference data — `ReferenceDataSeeder` populates `list_country` (5), `all_country` (352), `state_my` (16), `postcode_my` (56,234) from files committed under `database/data/`, so a fresh clone seeds without the source DB. Idempotent; 6 Pest tests.
+      **Not seeded: `state`.** Its `shipping_zone` (1 = Peninsular, 2 = Sabah/Sarawak/Labuan) drives postage *and* the COD benchmark fee. It was empty in the dump and the source has no hardcoded zone map to port, so it must come from live data or merchant confirmation.
 
 ## Phase 3: Backend Core — Models & Auth
 
 - [x] **3.1** Eloquent models for commerce: `Product`, `ProductVariant`, `ProductImage`, `Category`, `Brand`, `StockControl` + relationships
-- [x] **3.2** Eloquent models for orders: `Order` (`customer_orders`), `OrderDetail`, `Cart`, `CartLock`, `OrderTempData` + status constants (0–10)
-- [x] **3.3** Eloquent models for people: `MemberHq` (admin auth), `Member` (customer auth), `RoleAccess`, `Activity`
-- [ ] **3.4** Eloquent models for geo/pricing: `ListCountry`, `CountryPrice`, `PostageCost`, `CodCharge`, `StateSetting`
-- [ ] **3.5** Eloquent models for settings/CMS: `StoreSetting`, `Slider`, `NewsBlog`, `BlogView`, `PageContent`, `ImageSetting`, `CourierSetting`
-- [ ] **3.6** Eloquent models for support: `SupportTicket`, `CsTicket`, `CsCustomer`, `CsReply`
-- [ ] **3.7** Eloquent models for payments/shipping settings: `SenangPaySetting`, `Bayarcash`, `BayarcashTransaction`, `StripeSetting`, `DhlSetting`, `PickupHub`
+- [x] **3.2** Eloquent models for orders: `Order` (`customer_orders`), `OrderDetail`, `Cart`, `CartLock`, `OrderTempData` + status constants (0–10) — *`CartLock` and `OrderTempData` were missing from the first pass; added.*
+- [x] **3.3** Eloquent models for people: `MemberHq` (admin auth), `Member` (customer auth), `RoleAccess`, `Activity`, `UserActivity` — *`RoleAccess`, `Activity` and `UserActivity` were missing from the first pass; `MemberHq::activities()` pointed at a non-existent class. Added.*
+- [x] **3.4** Eloquent models for geo/pricing: `ListCountry`, `AllCountry`, `CountryPrice`, `PostageCost`, `CodCharge`, `StateSetting`, `StateMy`, `PostcodeMy`. Postage and COD arithmetic ported onto the models (`costForWeight()`, `feeForSubtotal()`).
+- [x] **3.5** Eloquent models for settings/CMS: `StoreSetting`, `Slider`, `NewsBlog`, `BlogView`, `PageContent` (abstract) + `AboutUs`/`Policy`/`TermsConditions`, `ImageSetting`, `JtSetting`
+- [x] **3.6** Eloquent models for support: `SupportTicket` (source `SupportTicket` + `CsTicket` merged — both were the same table), `CsCustomer`, `CsStaffUser`, `CsTicketReply`, `CsTicketAttachment`, `CsReplyAttachment`, `CsTicketLog`
+- [x] **3.7** Eloquent models for payments/shipping settings: `SenangPaySetting`, `BayarcashSetting`, `BayarcashTransaction`, `StripeSetting`, `BillplzSetting`, `DhlSetting`, `DhlToken`, `JtSetting`, `NinjavanToken`, `PickupHub`, `PickupHubStaff`. Each exposes `credentials()` resolving the active sandbox/production pair.
+      *Deferred to Phase 6 (transactional, not settings): `dhl_ship`, `dhl_bulk_print`, `jt_code`, `awb_printed`, `apps_token`.*
 - [x] **3.8** Multi-guard auth: `admin` guard → `member_hq`, `web` guard → `members`
 - [x] **3.9** Password compatibility — admins stored **unsalted SHA-256**; `LegacyHashUserProvider` verifies then upgrades to bcrypt on login. Customers already bcrypt. 5 Pest tests green.
-- [ ] **3.10** Authorization: Gates/Policies replacing `checkAccess()` + `role_access` matrix
-- [ ] **3.11** Global helpers → config + service classes (`getStoreSettings()` → cached `StoreSetting::all()`)
-- [ ] **3.12** Replace `dateNow()` with Carbon + app timezone; audit every datetime write
+- [x] **3.10** Authorization: `access` / `perform` Gates over `App\Services\PageAccess` (replaces `roleVerify()`), plus a `page:<slug>` route middleware so Phase 7.4 has one place to enforce. Fail-closed, no super-admin bypass, 300 s cache with version-stamp invalidation. 9 Pest tests.
+- [x] **3.11** Global helpers → service classes: `App\Services\StoreSettings` (singleton, 600 s cache, write-through invalidation) replaces `getStoreSettings()`; `Activity::record()` replaces `activity()`. 6 Pest tests.
+- [x] **3.12** Replace `dateNow()` with Carbon + app timezone. **Found and fixed:** stock `config/app.php` hardcoded `'timezone' => 'UTC'` and ignored `APP_TIMEZONE`, so every write would have landed 8 h off the source data. Now `env('APP_TIMEZONE', 'UTC')`; 2 Pest tests lock it in.
 
 ## Phase 4: Admin Panel — Vue + CoreUI *(43 screens)*
 
-- [ ] **4.1** Admin layout shell: CoreUI sidebar + header + breadcrumb, driven by `role_access`
-- [ ] **4.2** Shared Vue components: `DataTable` (CSmartTable), `FormModal`, `ConfirmDialog` (SweetAlert2), `FileUpload`, `RichText` (TinyMCE), `Sortable` (vuedraggable)
-- [ ] **4.3** Auth screens: login, logout, forgot/reset password
-- [ ] **4.4** Dashboard — sales widgets, latest orders, charts
-- [ ] **4.5** Products: list, create, edit, variants, images, country pricing
-- [ ] **4.6** Stock control screens
-- [ ] **4.7** Categories & brands
-- [ ] **4.8** Orders: 6 status listings, order detail, customer edit, bulk status move
-- [ ] **4.9** Order search + export (PhpSpreadsheet → maatwebsite/excel)
-- [ ] **4.10** Courier submission (DHL / J&T / NinjaVan), AWB print, bulk print
-- [ ] **4.11** Members & staff management, role access matrix editor
-- [ ] **4.12** Settings: store settings, shipping, postage, COD charge, announcements
-- [ ] **4.13** Payment settings: SenangPay, Bayarcash, Stripe
-- [ ] **4.14** Slider manager (drag reorder)
-- [ ] **4.15** Blog / news manager
-- [ ] **4.16** Country & state settings
-- [ ] **4.17** Support tickets (admin side)
-- [ ] **4.18** Sales reports
-- [ ] **4.19** Pickup hub management
-- [ ] **4.20** Activity log viewer
+> **Design gate (20-design-protocol.md): no screen is built before its Screen Brief is approved.**
+> Briefs for the 8 foundation screens: https://claude.ai/code/artifact/38ccea32-c493-454f-ae84-e0c117aaa0a1 — **approved 2026-09-05.**
+> Locked answers: volume **20k+ orders** (server-side paging, archives search-first) · reference **CoreUI Vue 5 demo** · **build remember-me and password reset properly**.
+> **Q1/Q2 revised:** on inspection they gate individual *controls*, not whole screens. Q1 was resolved by fixing the filter (decision 36); Q2 still open, and only affects whether Order Search renders checkboxes.
+
+- [x] **4.1** Admin layout shell: CoreUI sidebar + header + breadcrumb, driven by `role_access` via `App\Services\AdminNavigation`. Groups with no permitted child are dropped, as are section titles left over nothing; queue badges are loud only on the three working queues. Search moved from the sidebar to the topbar. 7 Pest tests. Screenshotted at 1280 and 390.
+- [~] **4.2** Shared Vue components. **Built:** `StatusPill`, `EmptyState`, `FlashToast`, `DataTable` (server-paged over `CTable` + `CPagination`, header/cell slots, skeleton loading), `MoneyCell`, plus the SCSS token layer and `Order`/`Product`/`Category`/`Brand` factories. **Deferred by design:** `DataTable`, `FilterBar`, `MoneyCell`, `FormModal`, `FileUpload`, `RichText`, `Sortable` — each ships with the first screen that consumes it, rather than being designed speculatively against no table. *Deviation from the brief's build order, raised not absorbed.*
+      **Corrected:** `CSmartTable` is a CoreUI **PRO** component — verified absent from the installed package (173 components exported; `CSmartTable`, `CSmartPagination`, `CDatePicker`, `CMultiSelect` all missing). `DataTable` builds on the free `CTable` + `CPagination` with a Laravel paginator, which is the right shape at 20k+ orders anyway. `CChart` also absent — needs `@coreui/vue-chartjs` (v3.0.0, MIT) + `chart.js`.
+- [x] **4.3** Auth screens: login, logout, forgot/reset password. Rate-limited (5/min per email+IP), one message for wrong-password and unknown-email alike, a distinct message for inactive/banned accounts, and `AdminResetPassword` so links land on the admin routes. 14 Pest tests. *Backend built ahead of the design gate:* `remember_token` added to both auth tables (the source checkbox was decorative — no column existed), dedicated `admins` password broker on its own `admin_password_reset_tokens` table, 5 Pest tests. UI awaits brief approval.
+- [x] **4.4** Dashboard — three headline figures with a working-queue panel, a secondary strip, a 14-day sales trend (`@coreui/vue-chartjs`), latest orders and the staff activity feed. Pre-aggregated behind a 30s cache carrying its own `generated_at`, so staleness is visible. 5 Pest tests.
+- [x] **4.5** Products: create, edit, variants, images, country pricing — one component with a mode, replacing two drifted 400-line files. Server-side validation, 5-image cap, SKU uniqueness, variants soft-deleted not destroyed. 8 Pest tests. *A dedicated product list is still to do; Stock Control currently serves as it.*
+- [x] **4.6** Stock control — server-paged (was client-side DataTables loading every row), computed balance and sold count in two grouped queries, append-only ledger preserved, per-button permissions, configurable low-stock threshold. 6 Pest tests.
+> **Grouped brief — settings, CMS & reference screens (4.7, 4.12–4.20), 2026-09-05.**
+> *Who:* HQ/Owner and Staff Admin, a few times a month. *Primary action:* save one form, or
+> open one record. *Volume:* tens of rows — client-side is fine, server paging over-engineers it.
+> *Density:* `roomy-form` for settings, `dense-table` for lists. *States:* empty carrying its
+> create action, saving, inline validation, permission-denied via middleware. *Reuses:*
+> `DataTable`, `MoneyCell`, `StatusPill`, `EmptyState`, CoreUI forms — no new components.
+> *Reference:* CoreUI forms and tables demo, as approved.
+
+- [x] **4.7** Categories & brands — list, add, edit, image upload; deleting is refused while products still point at the row (the source allowed it), and a category can no longer be its own parent.
+- [x] **4.8** Orders: 7 routes on one screen (6 statuses + Database Order), filtering, server-side paging, per-row and bulk stage moves. 10 Pest tests. Screenshotted at 1280 and 390.
+      **Deferred to Phase 6:** *Send to Courier*, *Print AWB* and *Re-Print AWB* call the DHL/J&T/NinjaVan APIs, which are Phase 6.8–6.9. Order detail modal and customer edit still to do.
+- [x] **4.9** Order search — search-first across every status, server-paged, resting state before any query. The source's checkboxes are gone: they were wired to a bulk bar that does not exist on that page, so it threw four null dereferences on load (**Q2 still open**). 5 Pest tests. *Export still to do.*
+- [ ] **4.10** Courier submission (DHL / J&T / NinjaVan), AWB print, bulk print — **blocked on Phase 6.8–6.9**, which owns those gateway services.
+- [x] **4.11** HQ Staff + role-access matrix — server-side password rules (was browser-only), bcrypt on create (the source added a new SHA-256 hash per account), HQ/Owner role not assignable, self-edit blocked, permission toggles labelled rather than colour-only, every change logged. 8 Pest tests.
+- [~] **4.12** Settings: store settings (allowlisted keys), shipping cost — postage and COD per country + zone. Plus the storefront copy pages (Policy, Terms, About Us) and Logo Setting. *Announcements not built: the `announcement` table has no DDL anywhere in the source.*
+- [x] **4.13** Payment settings: SenangPay, Bayarcash, Stripe on one screen. **Secrets are never sent to the browser** — only whether each is set and a 4-char tail; a blank field keeps the stored value. The source rendered live secret keys into `value="..."`. Courier credentials (DHL, J&T) get the same treatment.
+- [x] **4.14** Slider manager — drag reorder via vuedraggable, the whole running order saved in one request; upload, show/hide, remove.
+- [x] **4.15** Blog manager — list, write, edit, remove, reader counts, author attribution.
+- [x] **4.16** Country & state settings — add from the world list (switched off until postage is set), edit currency/rate/selling, and per-state shipping zones. The MYR rate is required, never defaulted: it fills every order's stored rate.
+- [x] **4.17** Support tickets — queue sorted urgent-first, ticket detail with the conversation, staff reply, status change logged to `cs_ticket_logs`.
+- [x] **4.18** Sales report — date range in the query string (so a filtered report is a shareable link), revenue/orders/average/postage summary, daily bar chart, breakdown by country and courier. Absorbs the source's separate *Sales Statistic* page.
+- [x] **4.19** Pickup hub management — list with staff and order counts, add/edit, unique hub code enforced.
+- [x] **4.20** Activity log viewer — paginated, filterable by staff member and area. Stage moves, permission changes, catalogue edits and settings saves all write here.
 
 ## Phase 5: Storefront — Vue + Inertia SSR *(23 screens)*
 
@@ -174,13 +192,15 @@
 Resolved (migrations written from the source project's pending `sql/` files):
 `store_settings`, `blog_views`, `sliders`, `ninjavan_token`
 
+Resolved (DDL found in the source project **root**, not `sql/` — this is where the
+earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_charges.sql`),
+`bayarcash_api` + `bayarcash_transactions` (`migration_bayarcash.sql`, with
+`sql/bayarcash_alter_columns.sql` applied). No money precision was guessed.
+
 **Still missing — DDL required before the dependent features can migrate:**
 
 | Table | Needed by | Why it cannot be reconstructed |
 |---|---|---|
-| `bayarcash_api` | Bayarcash admin settings | Only an `ALTER` exists in `sql/`; base DDL unknown |
-| `bayarcash_transactions` | Bayarcash payments | Column types/precision unknown |
-| `cod_charges` | COD fee calculation | `benchmark_amount`, `cod_fee_below/above` are money — precision must not be guessed |
 | `membership`, `membership_point_history` | Loyalty points | `point_amount`, `purchase_amount` are money |
 | `phone_verify_code` | Phone verification | Column names known, types not |
 | `announcement` | Admin announcements | Unknown |
@@ -189,8 +209,8 @@ Resolved (migrations written from the source project's pending `sql/` files):
 
 ## Open Risks
 
-1. **Data source for import** — local `2025_rozeyana` (port 3307) has only **22 of 59 tables**. `base_ecom.sql` (4.1 MB) has all 59. Live remote DB is the true source. *Must confirm which is authoritative before Phase 2.13.*
-2. **Legacy password hashes** — unknown algorithm in `member_hq`/`members`; if not bcrypt, needs rehash-on-login shim or a forced reset.
+1. **Data source for import — measured 2026-09-05, and worse than assumed.** `base_ecom.sql` has all 59 tables but is essentially a *schema* dump: `customer_orders` 0, `order_details` 0, `products` 0, `product_variants` 0, `role_access` 0 (it did carry `members` 1,914 and `member_hq` 14). Local `2025_rozeyana` holds 22 tables of throwaway test data (2 orders, 5 products, 1 admin). **Neither local database is a migration source — the live remote DB is the only one.** Blocks 2.13, 2.14 and therefore 2.10. Needs Fakrul's credentials and authorisation.
+2. ~~**Legacy password hashes**~~ — *resolved in 3.9*: `member_hq` is unsalted SHA-256, `members` is already bcrypt; `LegacyHashUserProvider` verifies then upgrades on login.
 3. **Inertia SSR** adds a node process to production deployment.
 4. **CoreUI free tier** lacks some PRO components (advanced multiselect); substituted `@vueform/multiselect`.
 5. **Source credential leaks** (DB password, GitHub PAT) exist in git history — rotation is outside this migration.
@@ -204,6 +224,52 @@ Resolved (migrations written from the source project's pending `sql/` files):
 | 3 | `@vueform/multiselect` over `vue-select` | `vue-select` has no Vue 3 stable release |
 | 4 | `vuedraggable@^4.1.0` | v2.x is Vue 2 only |
 | 5 | Register CoreUI via named exports, not `app.use()` | `@coreui/vue` v5 removed its `install()` hook; `app.use(CoreuiVue)` is a silent no-op that renders every `<C*>` tag as an empty comment. Handled in `resources/js/coreui.js`. |
+| 6 | Import dump into scratch DB `shaniena_src`, generate migrations from metadata | Far more reliable than parsing 59 `CREATE TABLE` blocks by hand. Needed `utf8mb4_0900_ai_ci` → `utf8mb4_unicode_ci` (MySQL 8 dump, MariaDB 10.4 local). |
+| 7 | `timestamp` → `datetime`, `softDeletes()` → explicit `datetime` | Project convention: `datetime` avoids MySQL timezone conversion. 59 + 17 columns converted. |
+| 8 | Zero-date defaults → `nullable()` | Source had `DEFAULT '0000-00-00 00:00:00'` on 8 columns; MySQL strict mode rejects it. |
+| 9 | Laravel `users` table not created | App authenticates against migrated `member_hq` / `members`. Kept `password_reset_tokens` + `sessions`. |
+| 10 | `LegacyHashUserProvider` for the admin guard | `member_hq` stores unsalted SHA-256 (`config/function.php: hash('sha256', ...)`). Verifying then rehashing to bcrypt on login keeps every admin able to log in while removing the weak hash. |
+| 11 | Prices come from `list_country_product_price`, not variant columns | Source resolves display price via `getPriceOnCountry()`; `sale_price` is charged and `market_price` shows struck through only when `sale < market`. `price_retail`/`price_sale` kept for schema parity only. |
+| 12 | Cart active state is `status IN (0,1)` | Source `model/Cart.php` treats unpaid(0) and paid(1) as the live basket; 4 marks removed. |
+| 13 | Dedicated `shaniena_v3_test` database | `RefreshDatabase` against the dev DB would wipe it; migrations use MySQL-specific types, so sqlite is not a safe substitute. |
+| 14 | `SupportTicket` merges the source's `SupportTicket` + `CsTicket` | Both were models over `cs_tickets`, split only by which controller used them. One Eloquent model, one table. |
+| 15 | `PageContent` is abstract with `AboutUs` / `Policy` / `TermsConditions` subclasses | The source passed the table name in as a string (`"SELECT * FROM {$tableName}"`), same for `CourierSetting`. Subclasses make the table a constant, so it can never be caller-supplied. |
+| 16 | No super-admin bypass on the `access` gate | `roleVerify()` grants role 1 nothing implicitly — it is a pure `role_access` lookup. A bypass would widen access beyond what the migrated data says. |
+| 17 | `CartLock` binds to `cart_lock_senangpay` | That is the table the source `CartLock` model used. The identically-shaped `cart_lock` table appears in the schema but in no code path — dead, kept only for import parity. |
+| 18 | `allowed_user` keeps the `[1][7][12]` bracket format | Existing rows are written that way and the admin matrix editor must stay byte-compatible with imported data. `RoleAccess::allowedUserIds()` / `setAllowedUserIds()` wrap the encoding. |
+| 19 | DHL and J&T mode flags are left inverted | `dhl.production_sandbox` is 1=production/2=sandbox; `jt_setting.production_sandbox` is 0=sandbox/1=production. Both kept as the source defines them; `isProduction()` on each model is the only sanctioned reader. |
+| 20 | Deleted the stock `User` model, `UserFactory` and seeder body | They pointed at a `users` table decision 9 says will never exist — `php artisan db:seed` would have failed. |
+| 21 | Reference data committed to `database/data/`, not read from `shaniena_src` at seed time | A seeder that depends on a scratch database is not reproducible on a fresh clone or in CI. `postcode_my` ships gzipped (349 KB for 56k rows). |
+| 22 | `state_my` names supplied, not imported | The table was empty in the dump. The 16 codes are exactly the distinct `state_code` values in `postcode_my` (13 states + 3 federal territories); the names are the standard Pos Malaysia readings. Names only — nothing here affects pricing. |
+| 23 | `postcode_my` seeded with `delete()`, not `truncate()` | `TRUNCATE` implicitly commits in MySQL, which would break the transaction `RefreshDatabase` wraps each test in. |
+| 24 | `PostcodeMy` declares `$primaryKey = null`, `$incrementing = false` | The source table genuinely has no primary key — a postcode maps to many areas and no column pair is unique. The model defaulted to a non-existent `id`. |
+| 25 | Test suite `memory_limit` raised to 512M in `phpunit.xml` | Seeding 56k postcode rows inside the test transaction exceeds PHP's 128M default. Measured: passes at 256M, headroom to 512M. |
+| 26 | Admins get their own `admin_password_reset_tokens` table | `password_reset_tokens` is keyed by email alone. Staff who also shop on the store exist in both `member_hq` and `members`, so a shared table would let one reset request overwrite the other's token. |
+| 27 | `DataTable` built on free `CTable` + `CPagination`, not `CSmartTable` | `CSmartTable` is CoreUI PRO and is not in the installed package. At 20k+ orders a client-side smart table would load every row anyway — server-side paging is the correct shape regardless of licensing. |
+| 28 | Order queues split into working queues vs archives | New/Processing/In-Delivery hold tens–hundreds of live rows and are worked sequentially; Completed/Returned/Cancelled/Database hold the 20k+ bulk and are only ever searched. One template for both is what makes the archive screens slow. |
+| 29 | `bootstrap/scss/bootstrap` import dropped; CoreUI only | CoreUI 5 is a full Bootstrap fork, so importing both shipped the framework twice **and** locked Sass's `$prefix` to `bs-` — Bootstrap sets it first, so CoreUI's `$prefix: cui- !default` could never win. Every `--cui-*` override was silently inert. Saved 113 kB of CSS. |
+| 30 | Separate `$brand-interactive: #cc2f30` for filled buttons | White on the brand `#e53637` is 4.27:1, under the 4.5:1 AA floor, so Bootstrap's contrast function picked black text — accessible but visually broken on a CTA. The darker shade takes white to 5.23:1. The brand red is unchanged everywhere it sits on a light ground. |
+| 31 | Queue badges are loud only on New / Processing / In Delivery | Returned and Cancelled are outcomes, not work. Colouring every non-zero count urgent teaches operators to ignore the colour. |
+| 32 | Sidebar nav uses Inertia `<Link>` inside `CNavItem`'s slot | `CNavItem`'s own `href` prop renders a plain `<a>`, which is a full page reload on every nav click. |
+| 33 | Shared components ship with their first consumer | `DataTable`/`FilterBar`/`MoneyCell` cannot be designed well against no table. Building them speculatively is how a component library ends up fitting nothing. |
+| 34 | `.wrapper` padding rule written by hand | CoreUI sets `--cui-sidebar-occupy-start` on the fixed sidebar's siblings but ships no rule consuming it — that lives in their paid template. Without it the content sits under the sidebar. |
+| 35 | `customer_orders` is one row per **order**, not per variant | The Phase 3 model docblock said the opposite and hung a `belongsTo` off `product_var_id`. Line items are `cart` rows sharing the order's `session_id` (`model/Order.php::listByStatus` joins cart and groups by `co.id`); `product_var_id` is a denormalised comma list, not a foreign key. Corrected, with `lines()` and `variantIds()`. |
+| 36 | Product filter fixed to match any line, not only single-item orders | The source's `HAVING COUNT(*) = 1` meant filtering by a product hid every multi-item order containing it. Raised as Q1 and built as the fix — reverting is a one-line change to `applyFilters()`. |
+| 37 | Stage transitions validated against `Order::ALLOWED_TRANSITIONS` | The source put the from/to pair in the button href, so a crafted URL could move an order to any status. `moveToProcessing()` also ran with **no** `checkAccess()` at all. |
+| 38 | Archive queues open empty and require a filter | Completed/Returned/Cancelled/Database hold the bulk of 20k+ orders and are only ever searched. Rendering page 1 of 18,000 costs a query nobody wanted. Working queues still list immediately. |
+| 39 | `.data-table { min-width: 60rem }` with horizontal scroll | Without it a 390px viewport crushes columns until a product name breaks over four lines. The source did the same with `min-width: 700px`. |
+| 40 | Admin product routes bind by `{product:id}`, not slug | `Product::getRouteKeyName()` is `slug` for storefront URLs, but the slug is editable on the product form — saving a new one would move the page out from under the operator. Found as a 404 on update. |
+| 41 | `variants.*.sku` validated `distinct` | `product_variants.sku` carries a UNIQUE index and a soft-deleted variant still holds its SKU, so a clash was a 500 rather than a field error. |
+| 42 | `DataTable` takes `minWidth` as a prop | 60rem is right for a full-page queue and wrong for a table inside a narrow dashboard card, where it clipped the status pills. |
+| 43 | Dashboard shows three figures, not the source's eight | Only what someone acts on gets to be loud. Total Products and all-time order count moved to a hairline strip. |
+| 44 | Dashboard cache is 30s with a visible `generated_at` | The source polled a static JSON every 2s for figures that move a few times an hour, and showed nothing when the fetch failed. Pre-aggregation was right; invisible staleness was not. |
+| 45 | Low-stock threshold read from `store_settings` | Hardcoded as 101 in two places in the source, so a slow-moving line showed red permanently. Defaults to 101, so behaviour is unchanged until set. |
+| 46 | Payment and courier secrets are never sent to the browser | The source rendered live gateway secret keys into `value="..."` on the settings page. Now only a masked 4-char tail crosses the wire, and a blank field means "keep the stored value" so changing mode does not force retyping every secret. |
+| 47 | One Payment Settings screen for three gateways | The source had a page per gateway repeating the same form. Replaces the `bayarcash-setting` nav slug with `payment-setting`. |
+| 48 | NinjaVan, PosLaju, Announcements and Add-New-Country removed from the nav | The first three have no table anywhere in the source; adding a country now happens inline on the country list. A nav item that 404s is worse than one that is absent. |
+| 49 | *Sales Statistic* folded into *Sales Report* | The source split charts and tables across two pages; one screen carries both. |
+| 50 | Every admin route binds by id | Category, Brand, Product, PickupHub and SupportTicket all set `getRouteKeyName()` to a slug/code for public URLs — and those values are editable on the very screens that save them. |
+| 51 | `LegacyHashUserProvider::isLegacySha256()` made public and reused | `Hash::check()` throws outright on a non-bcrypt hash, so the change-password screen has to test for a legacy hash first — the same order the auth provider uses. Restating the regex would have let the two drift. |
 
 ## Verification Log
 
@@ -220,11 +286,46 @@ Resolved (migrations written from the source project's pending `sql/` files):
 | 2026-09-05 | Schema parity vs source | 57 tables column-compared, **0 mismatches** ✓ |
 | 2026-09-05 | Multi-guard auth resolves | `web`→members, `admin`→admins via LegacyHashUserProvider ✓ |
 | 2026-09-05 | Legacy password upgrade | 5 Pest tests, 7 assertions, all passing ✓ |
-| 6 | Import dump into scratch DB `shaniena_src`, generate migrations from metadata | Far more reliable than parsing 59 `CREATE TABLE` blocks by hand. Needed `utf8mb4_0900_ai_ci` → `utf8mb4_unicode_ci` (MySQL 8 dump, MariaDB 10.4 local). |
-| 7 | `timestamp` → `datetime`, `softDeletes()` → explicit `datetime` | Project convention: `datetime` avoids MySQL timezone conversion. 59 + 17 columns converted. |
-| 8 | Zero-date defaults → `nullable()` | Source had `DEFAULT '0000-00-00 00:00:00'` on 8 columns; MySQL strict mode rejects it. |
-| 9 | Laravel `users` table not created | App authenticates against migrated `member_hq` / `members`. Kept `password_reset_tokens` + `sessions`. |
-| 10 | `LegacyHashUserProvider` for the admin guard | `member_hq` stores unsalted SHA-256 (`config/function.php: hash('sha256', ...)`). Verifying then rehashing to bcrypt on login keeps every admin able to log in while removing the weak hash. |
-| 11 | Prices come from `list_country_product_price`, not variant columns | Source resolves display price via `getPriceOnCountry()`; `sale_price` is charged and `market_price` shows struck through only when `sale < market`. `price_retail`/`price_sale` kept for schema parity only. |
-| 12 | Cart active state is `status IN (0,1)` | Source `model/Cart.php` treats unpaid(0) and paid(1) as the live basket; 4 marks removed. |
-| 13 | Dedicated `shaniena_v3_test` database | `RefreshDatabase` against the dev DB would wipe it; migrations use MySQL-specific types, so sqlite is not a safe substitute. |
+| 2026-09-05 | 3 new migrations (`cod_charges`, `bayarcash_api`, `bayarcash_transactions`) | ran clean on `shaniena_v3` ✓ |
+| 2026-09-05 | Every model binds to a real table, every `$fillable`/cast column exists | 47 models checked, 0 failures ✓ |
+| 2026-09-05 | Every Eloquent relation compiles to SQL | 60 relations checked, 0 failures ✓ |
+| 2026-09-05 | `config('app.timezone')` after fix | `Asia/Kuala_Lumpur`, `now()` at UTC+8 ✓ |
+| 2026-09-05 | Pest suite after Phase 3 | 29 passed, 47 assertions ✓ |
+| 2026-09-05 | `vendor/bin/pint --test` | passed (whole repo, incl. pre-existing violations fixed) ✓ |
+| 2026-09-05 | CS verify | VERIFIED 85/100 before Pint; lint gate now green ✓ |
+| 2026-09-05 | Candidate import sources profiled | `shaniena_src` commerce tables empty, `2025_rozeyana` test-only → live DB required ✓ |
+| 2026-09-05 | Reference seed row counts vs source | `list_country` 5/5, `all_country` 352/352, `postcode_my` 56,234/56,234 ✓ |
+| 2026-09-05 | Reference seed **content** vs source | MD5 over all rows, binary-ordered: identical for all three tables ✓ |
+| 2026-09-05 | Postcode → state coverage | 0 postcodes without a `state_my` row (16/16 codes) ✓ |
+| 2026-09-05 | `ReferenceDataSeeder` re-run | counts unchanged — idempotent ✓ |
+| 2026-09-05 | Pest suite after 2.15 | 35 passed, 63 assertions ✓ |
+| 2026-09-05 | CoreUI free package component audit | 173 exported; `CSmartTable`/`CSmartPagination`/`CDatePicker`/`CMultiSelect`/`CChart` absent ✓ |
+| 2026-09-05 | Remember-me on both guards | token persisted for `admin` and `web` ✓ |
+| 2026-09-05 | Admin password reset on its own broker | link sent, reset applied, bcrypt stored ✓ |
+| 2026-09-05 | Admin/customer reset-token isolation | same email, 2 tokens, neither overwritten ✓ |
+| 2026-09-05 | Pest suite after 4.3 backend | 40 passed, 76 assertions ✓ |
+| 2026-09-05 | Sidebar order counts | 1 grouped query, not 6 `SELECT *` scans — asserted in the test ✓ |
+| 2026-09-05 | Sign-in journey in a real browser (headless Chrome/CDP) | form → redirect to `/admin/dashboard`, 0 console errors ✓ |
+| 2026-09-05 | Shell + auth screenshots at 1280 and 390 | captured, reviewed, 3 defects found and fixed ✓ |
+| 2026-09-05 | CSS bundle after dropping the duplicate Bootstrap import | 444.9 kB → 331.7 kB (gzip 60.9 → 45.4) ✓ |
+| 2026-09-05 | Primary button contrast, measured in-browser | white on `#cc2f30` = 5.23:1, passes AA ✓ |
+| 2026-09-05 | Pest suite after 4.1 + 4.3 | 56 passed, 131 assertions ✓ |
+| 2026-09-05 | Order line items load without a query per row | ≤4 queries for 5 orders × 2 lines; source ran 4 raw queries **per variant per order** ✓ |
+| 2026-09-05 | Product filter matches multi-item orders | 2 of 3 orders matched where the source's `HAVING COUNT(*) = 1` returned 1 ✓ |
+| 2026-09-05 | Illegal stage transition rejected | New → Completed refused, order unchanged ✓ |
+| 2026-09-05 | Order queues screenshotted at 1280 and 390 | 3 layout defects found and fixed ✓ |
+| 2026-09-05 | Pest suite after 4.8 | 66 passed, 192 assertions ✓ |
+| 2026-09-05 | Revenue excludes cancelled and failed orders | RM100 counted, RM500 cancelled and RM900 failed excluded ✓ |
+| 2026-09-05 | Stock balance = SUM(stock_in) − SUM(stock_out) | 500 − 120 = 380, two grouped queries for the page ✓ |
+| 2026-09-05 | New staff password stored bcrypt, never SHA-256 | asserted against `hash('sha256', ...)` ✓ |
+| 2026-09-05 | Permission toggle takes effect on the gate immediately | grant → allowed, revoke → denied, cache flushed ✓ |
+| 2026-09-05 | Variant dropped from the product form is soft-deleted | 1 active, 2 with trashed ✓ |
+| 2026-09-05 | Every new screen rendered at 1280 and 390 | 0 server errors, 5 layout defects found and fixed ✓ |
+| 2026-09-05 | Pest suite after 4.4–4.11 | 98 passed, 373 assertions ✓ |
+| 2026-09-05 | Payment + courier secrets absent from the HTML payload | 6 secrets asserted missing; only masked tails present ✓ |
+| 2026-09-05 | Blank secret field preserves the stored value | mode changed, secrets unchanged ✓ |
+| 2026-09-05 | Every admin screen renders for a permitted admin | 24 screens, all 200 + correct component ✓ |
+| 2026-09-05 | Every admin screen 403s without its slug | 23 screens ✓ |
+| 2026-09-05 | Sidebar link crawl in a real browser | 31 links, **0 dead ends** ✓ |
+| 2026-09-05 | Legacy SHA-256 accepted as current password | verified, then stored as bcrypt ✓ |
+| 2026-09-05 | Pest suite after Phase 4 | 175 passed, 708 assertions ✓ |
