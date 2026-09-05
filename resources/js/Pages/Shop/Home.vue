@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import StorefrontLayout from '../../Layouts/StorefrontLayout.vue';
 import ProductRow from '../../Storefront/ProductRow.vue';
+import HeroSlider from '../../Storefront/HeroSlider.vue';
 
 // Ashion's service tiles. The source shipped these with typos baked in
 // ("For all oder", "If good have Problems"); corrected here.
@@ -13,6 +14,7 @@ const SERVICES = [
 ];
 
 defineProps({
+    slides: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     newArrivals: { type: Array, default: () => [] },
     bestSellers: { type: Array, default: () => [] },
@@ -24,17 +26,28 @@ defineProps({
     <Head title="Home" />
 
     <StorefrontLayout current="home">
+        <HeroSlider :slides="slides" />
+
         <section class="categories spad">
             <div class="container">
                 <div class="row">
                     <!-- Ashion drove this with Owl Carousel; a responsive grid
-                         needs no jQuery and does not reflow on load. -->
+                         needs no jQuery and does not reflow on load.
+
+                         .categories__item is display:flex, so the heading and
+                         the link have to sit inside .categories__text — as
+                         siblings they ran together as "Body CareShop now". -->
                     <div v-for="category in categories" :key="category.id" class="col-lg-3 col-md-4 col-sm-6">
-                        <div class="categories__item">
-                            <h5 class="mb-1">
-                                <Link :href="`/categories/${category.slug ?? category.id}`">{{ category.name }}</Link>
-                            </h5>
-                            <Link :href="`/categories/${category.slug ?? category.id}`" class="d-inline-block">Shop now</Link>
+                        <div
+                            class="categories__item"
+                            :class="{ 'categories__item--bare': !category.image }"
+                            :style="category.image ? { backgroundImage: `url('${category.image}')` } : null"
+                        >
+                            <div class="categories__text">
+                                <h4>{{ category.name }}</h4>
+                                <p>{{ category.count }} item{{ category.count === 1 ? '' : 's' }}</p>
+                                <Link :href="`/categories/${category.slug ?? category.id}`">Shop now</Link>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -61,3 +74,19 @@ defineProps({
 
     </StorefrontLayout>
 </template>
+
+<style scoped>
+.categories__item {
+    background-position: center;
+    background-size: cover;
+}
+
+/* Until a category has a photo, the tile is a flat ground rather than 314px
+   of white with text floating in it. */
+.categories__item--bare {
+    height: auto;
+    min-height: 9rem;
+    padding: 1.75rem;
+    background: #f4f2ef;
+}
+</style>

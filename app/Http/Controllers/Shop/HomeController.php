@@ -7,9 +7,11 @@ use App\Models\Cart;
 use App\Models\Category;
 use App\Models\ListCountry;
 use App\Models\Product;
+use App\Models\Slider;
 use App\Services\Storefront\Catalogue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,9 +24,33 @@ class HomeController extends Controller
         $country = $request->attributes->get('storefront.country');
 
         return Inertia::render('Shop/Home', [
+            // The source's hero was three hardcoded .webp files inside a
+            // commented-out block, so the console's Slider Setting screen has
+            // been managing a table the storefront never read.
+            'slides' => Slider::query()->active()->ordered()->get()
+                ->values()
+                ->map(fn (Slider $slide, int $i) => [
+                    'id' => $slide->id,
+                    'title' => $slide->title ?: null,
+                    'link' => $slide->link_url ?: null,
+                    'image' => Storage::disk('public')->url($slide->image),
+                    'first' => $i === 0,
+                ])->all(),
             'categories' => Category::query()
+                ->withCount(['products' => fn ($q) => $q->where('status', true)])
                 ->orderBy('sort_order')->orderBy('name')->limit(8)
-                ->get(['id', 'name', 'slug'])->all(),
+                ->get(['id', 'name', 'slug', 'image'])
+                ->map(fn (Category $category) => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'slug' => $category->slug,
+                    'count' => (int) $category->products_count,
+                    // Ashion drives these tiles off a background photo; without
+                    // one the tile is a 314px void.
+                    'image' => filled($category->image)
+                        ? Storage::disk('public')->url($category->image)
+                        : null,
+                ])->all(),
             // Newest first. The source sorted `ORDER BY created_at` ascending
             // with no direction, so its "New Arrival" row showed the oldest
             // products in the catalogue.

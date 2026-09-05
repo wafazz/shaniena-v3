@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import InstallBanner from '../Storefront/InstallBanner.vue';
 
 /**
  * Ashion's header and footer, ported to Vue.
@@ -219,5 +220,7 @@ function submitSearch() {
                 </div>
             </div>
         </footer>
+
+        <InstallBanner />
     </div>
 </template>

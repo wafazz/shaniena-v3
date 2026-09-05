@@ -12,6 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" href="/storefront/img/logo.png">
+    <link rel="apple-touch-icon" href="/storefront/img/apple-touch-icon.png">
 
     {{-- Montserrat and Cookie, the two faces Ashion is set in. --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
