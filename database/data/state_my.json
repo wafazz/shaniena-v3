@@ -1,0 +1,18 @@
+[
+    { "state_code": "JHR", "state_name": "Johor" },
+    { "state_code": "KDH", "state_name": "Kedah" },
+    { "state_code": "KTN", "state_name": "Kelantan" },
+    { "state_code": "KUL", "state_name": "Kuala Lumpur" },
+    { "state_code": "LBN", "state_name": "Labuan" },
+    { "state_code": "MLK", "state_name": "Melaka" },
+    { "state_code": "NSN", "state_name": "Negeri Sembilan" },
+    { "state_code": "PHG", "state_name": "Pahang" },
+    { "state_code": "PJY", "state_name": "Putrajaya" },
+    { "state_code": "PLS", "state_name": "Perlis" },
+    { "state_code": "PNG", "state_name": "Pulau Pinang" },
+    { "state_code": "PRK", "state_name": "Perak" },
+    { "state_code": "SBH", "state_name": "Sabah" },
+    { "state_code": "SGR", "state_name": "Selangor" },
+    { "state_code": "SRW", "state_name": "Sarawak" },
+    { "state_code": "TRG", "state_name": "Terengganu" }
+]
