@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Auth\LegacyHashUserProvider;
+use Illuminate\Support\Facades\Auth;
+
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Auth::provider('legacy-hash', function ($app, array $config) {
+            return new LegacyHashUserProvider($app['hash'], $config['model']);
+        });
     }
 }

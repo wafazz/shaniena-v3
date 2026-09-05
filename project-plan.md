@@ -65,15 +65,15 @@
 
 ## Phase 3: Backend Core — Models & Auth
 
-- [ ] **3.1** Eloquent models for commerce: `Product`, `ProductVariant`, `ProductImage`, `Category`, `Brand`, `StockControl` + relationships
-- [ ] **3.2** Eloquent models for orders: `Order` (`customer_orders`), `OrderDetail`, `Cart`, `CartLock`, `OrderTempData` + status constants (0–10)
-- [ ] **3.3** Eloquent models for people: `MemberHq` (admin auth), `Member` (customer auth), `RoleAccess`, `Activity`
+- [x] **3.1** Eloquent models for commerce: `Product`, `ProductVariant`, `ProductImage`, `Category`, `Brand`, `StockControl` + relationships
+- [x] **3.2** Eloquent models for orders: `Order` (`customer_orders`), `OrderDetail`, `Cart`, `CartLock`, `OrderTempData` + status constants (0–10)
+- [x] **3.3** Eloquent models for people: `MemberHq` (admin auth), `Member` (customer auth), `RoleAccess`, `Activity`
 - [ ] **3.4** Eloquent models for geo/pricing: `ListCountry`, `CountryPrice`, `PostageCost`, `CodCharge`, `StateSetting`
 - [ ] **3.5** Eloquent models for settings/CMS: `StoreSetting`, `Slider`, `NewsBlog`, `BlogView`, `PageContent`, `ImageSetting`, `CourierSetting`
 - [ ] **3.6** Eloquent models for support: `SupportTicket`, `CsTicket`, `CsCustomer`, `CsReply`
 - [ ] **3.7** Eloquent models for payments/shipping settings: `SenangPaySetting`, `Bayarcash`, `BayarcashTransaction`, `StripeSetting`, `DhlSetting`, `PickupHub`
-- [ ] **3.8** Multi-guard auth: `admin` guard → `member_hq`, `web` guard → `members`
-- [ ] **3.9** Port password hashing/verification from source (audit legacy hash format, add rehash-on-login)
+- [x] **3.8** Multi-guard auth: `admin` guard → `member_hq`, `web` guard → `members`
+- [x] **3.9** Password compatibility — admins stored **unsalted SHA-256**; `LegacyHashUserProvider` verifies then upgrades to bcrypt on login. Customers already bcrypt. 5 Pest tests green.
 - [ ] **3.10** Authorization: Gates/Policies replacing `checkAccess()` + `role_access` matrix
 - [ ] **3.11** Global helpers → config + service classes (`getStoreSettings()` → cached `StoreSetting::all()`)
 - [ ] **3.12** Replace `dateNow()` with Carbon + app timezone; audit every datetime write
@@ -218,7 +218,13 @@ Resolved (migrations written from the source project's pending `sql/` files):
 | 2026-09-05 | Dump import into `shaniena_src` | 286 statements, 0 failures, 59 tables ✓ |
 | 2026-09-05 | `migrate:fresh` (71 migrations) | all ran clean ✓ |
 | 2026-09-05 | Schema parity vs source | 57 tables column-compared, **0 mismatches** ✓ |
+| 2026-09-05 | Multi-guard auth resolves | `web`→members, `admin`→admins via LegacyHashUserProvider ✓ |
+| 2026-09-05 | Legacy password upgrade | 5 Pest tests, 7 assertions, all passing ✓ |
 | 6 | Import dump into scratch DB `shaniena_src`, generate migrations from metadata | Far more reliable than parsing 59 `CREATE TABLE` blocks by hand. Needed `utf8mb4_0900_ai_ci` → `utf8mb4_unicode_ci` (MySQL 8 dump, MariaDB 10.4 local). |
 | 7 | `timestamp` → `datetime`, `softDeletes()` → explicit `datetime` | Project convention: `datetime` avoids MySQL timezone conversion. 59 + 17 columns converted. |
 | 8 | Zero-date defaults → `nullable()` | Source had `DEFAULT '0000-00-00 00:00:00'` on 8 columns; MySQL strict mode rejects it. |
 | 9 | Laravel `users` table not created | App authenticates against migrated `member_hq` / `members`. Kept `password_reset_tokens` + `sessions`. |
+| 10 | `LegacyHashUserProvider` for the admin guard | `member_hq` stores unsalted SHA-256 (`config/function.php: hash('sha256', ...)`). Verifying then rehashing to bcrypt on login keeps every admin able to log in while removing the weak hash. |
+| 11 | Prices come from `list_country_product_price`, not variant columns | Source resolves display price via `getPriceOnCountry()`; `sale_price` is charged and `market_price` shows struck through only when `sale < market`. `price_retail`/`price_sale` kept for schema parity only. |
+| 12 | Cart active state is `status IN (0,1)` | Source `model/Cart.php` treats unpaid(0) and paid(1) as the live basket; 4 marks removed. |
+| 13 | Dedicated `shaniena_v3_test` database | `RefreshDatabase` against the dev DB would wipe it; migrations use MySQL-specific types, so sqlite is not a safe substitute. |
