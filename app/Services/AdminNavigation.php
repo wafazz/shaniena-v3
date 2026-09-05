@@ -58,6 +58,7 @@ class AdminNavigation
             ['type' => 'group', 'label' => 'Manage Product', 'icon' => 'cilLayers', 'items' => [
                 ['slug' => 'category-product', 'label' => 'Category Product'],
                 ['slug' => 'brand-product', 'label' => 'Brand Product'],
+                ['slug' => 'product-list', 'label' => 'All Products'],
                 ['slug' => 'new-product', 'label' => 'New Product'],
                 ['slug' => 'stock-control', 'label' => 'Stock Control'],
             ]],

@@ -5,6 +5,7 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue';
 import DataTable from '../../../Components/DataTable.vue';
 import MoneyCell from '../../../Components/MoneyCell.vue';
 import StatusPill from '../../../Components/StatusPill.vue';
+import OrderDetailPanel from '../../../Components/OrderDetailPanel.vue';
 
 const props = defineProps({
     queue: { type: Object, required: true },
@@ -74,6 +75,9 @@ function ship(order) {
 }
 
 const page = usePage();
+
+// Which order the slide-over is showing, or null when it is closed.
+const openOrderId = ref(null);
 
 // A PDF, not an Inertia visit — open it rather than routing to it.
 function printAwb(order) {
@@ -231,7 +235,9 @@ const bulkTarget = computed(() => {
                     </template>
 
                     <template #cell:reference="{ row }">
-                        <div class="code fw-semibold">{{ row.reference }}</div>
+                        <button type="button" class="reference-link code fw-semibold" @click="openOrderId = row.id">
+                            {{ row.reference }}
+                        </button>
                         <div class="small text-body-secondary nowrap">{{ row.placed_at }}</div>
                     </template>
 
@@ -301,10 +307,25 @@ const bulkTarget = computed(() => {
                 </DataTable>
             </CCardBody>
         </CCard>
+        <OrderDetailPanel :order-id="openOrderId" @close="openOrderId = null" />
     </AdminLayout>
 </template>
 
 <style scoped>
+.reference-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--cui-body-color);
+    text-align: left;
+    text-decoration: none;
+}
+
+.reference-link:hover,
+.reference-link:focus-visible {
+    text-decoration: underline;
+}
+
 .order-line {
     max-width: 34rem;
     overflow-wrap: anywhere;

@@ -12,6 +12,8 @@ use App\Http\Controllers\Admin\CourierSettingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LiveFeedController;
 use App\Http\Controllers\Admin\LogoSettingController;
+use App\Http\Controllers\Admin\OrderDetailController;
+use App\Http\Controllers\Admin\OrderExportController;
 use App\Http\Controllers\Admin\OrderQueueController;
 use App\Http\Controllers\Admin\OrderSearchController;
 use App\Http\Controllers\Admin\OrderStatusController;
@@ -181,6 +183,22 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('page:new-order')
             ->name('orders.ship.bulk');
 
+        Route::get('orders/{order}/detail', [OrderDetailController::class, 'show'])
+            ->middleware('page:new-order')
+            ->name('orders.detail');
+
+        Route::patch('orders/{order}/detail', [OrderDetailController::class, 'update'])
+            ->middleware('page:new-order')
+            ->name('orders.detail.update');
+
+        Route::get('orders/export', OrderExportController::class)
+            ->middleware('page:search-order')
+            ->name('orders.export');
+
+        Route::get('orders/postcode', [OrderDetailController::class, 'lookupPostcode'])
+            ->middleware('page:new-order')
+            ->name('orders.postcode');
+
         Route::get('orders/{order}/awb', [AwbPrintController::class, 'show'])
             ->middleware('page:new-order')
             ->name('orders.awb');
@@ -196,6 +214,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('stock-control/{variant}/adjust', [StockControlController::class, 'adjust'])
             ->middleware('page:stock-control')
             ->name('stock.adjust');
+
+        Route::get('product-list', [ProductController::class, 'index'])
+            ->middleware('page:product-list')
+            ->name('products.index');
 
         Route::middleware('page:new-product')->group(function () {
             Route::get('new-product', [ProductController::class, 'create'])->name('products.create');

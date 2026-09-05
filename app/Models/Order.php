@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -128,9 +129,14 @@ class Order extends Model
         return $this->belongsTo(ListCountry::class, 'country_id');
     }
 
-    public function detail(): BelongsTo
+    /**
+     * `order_details.order_id` holds the ORDER id, not the session id — this
+     * relation was left pointing at `session_id` after that was corrected, so
+     * it matched nothing. Nothing read it, which is why it went unnoticed.
+     */
+    public function detail(): HasOne
     {
-        return $this->belongsTo(OrderDetail::class, 'session_id', 'order_id');
+        return $this->hasOne(OrderDetail::class, 'order_id');
     }
 
     public function scopeStatus(Builder $query, int $status): Builder

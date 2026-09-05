@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,90 @@ use Inertia\Response;
 class ProductController extends Controller
 {
     private const IMAGE_DISK = 'public';
+
+    private const PER_PAGE = 25;
+
+    /**
+     * The catalogue.
+     *
+     * The source had no product list at all — finding a product meant opening
+     * Stock Control, which lists variants, not products, and cannot show a
+     * product that has none yet.
+     */
+    public function index(Request $request): Response
+    {
+        $filters = [
+            'search' => trim((string) $request->query('search', '')),
+            'category' => $request->filled('category') ? (int) $request->query('category') : null,
+            'brand' => $request->filled('brand') ? (int) $request->query('brand') : null,
+            'status' => in_array($request->query('status'), ['1', '0'], true)
+                ? (int) $request->query('status')
+                : null,
+        ];
+
+        return Inertia::render('Admin/Products/Index', [
+            'filters' => $filters,
+            'categories' => Category::query()->orderBy('name')->get(['id', 'name']),
+            'brands' => Brand::query()->orderBy('name')->get(['id', 'name']),
+            'products' => fn () => $this->paginate($filters),
+        ]);
+    }
+
+    /** @param  array<string, mixed>  $filters  @return array<string, mixed> */
+    private function paginate(array $filters): array
+    {
+        $products = Product::query()
+            ->with([
+                'category:id,name',
+                'brand:id,name',
+                'variants' => fn ($q) => $q->select('id', 'product_id', 'price_retail', 'price_sale', 'stock', 'status'),
+                'images' => fn ($q) => $q->orderBy('id')->limit(1),
+            ])
+            ->when($filters['search'] !== '', fn ($q) => $q->where(function ($inner) use ($filters) {
+                $inner
+                    ->where('name', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('slug', 'like', '%'.$filters['search'].'%')
+                    // A SKU is what someone reads off a box, so search it too.
+                    ->orWhereHas('variants', fn ($v) => $v->where('sku', 'like', '%'.$filters['search'].'%'));
+            }))
+            ->when($filters['category'], fn ($q, $id) => $q->where('category_id', $id))
+            ->when($filters['brand'], fn ($q, $id) => $q->where('brand_id', $id))
+            ->when($filters['status'] !== null, fn ($q) => $q->where('status', $filters['status']))
+            ->orderByDesc('id')
+            ->paginate(self::PER_PAGE)
+            ->withQueryString();
+
+        return [
+            'data' => $products->getCollection()->map(function (Product $product) {
+                $prices = $product->variants
+                    ->map(fn ($v) => (float) ($v->price_sale > 0 ? $v->price_sale : $v->price_retail))
+                    ->filter()
+                    ->values();
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'type' => $product->type,
+                    'category' => $product->category?->name,
+                    'brand' => $product->brand?->name,
+                    'status' => (bool) $product->status,
+                    'image' => $product->images->first()?->image,
+                    'variants' => $product->variants->count(),
+                    'stock' => (int) $product->variants->sum('stock'),
+                    'price_from' => $prices->min(),
+                    'price_to' => $prices->max(),
+                ];
+            })->all(),
+            'meta' => [
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'total' => $products->total(),
+                'from' => $products->firstItem(),
+                'to' => $products->lastItem(),
+            ],
+        ];
+    }
 
     public function create(): Response
     {

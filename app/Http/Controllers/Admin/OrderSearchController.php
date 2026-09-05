@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\OrderQueues;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,6 +28,11 @@ class OrderSearchController extends Controller
 
         return Inertia::render('Admin/Orders/Search', [
             'term' => $term,
+            // From the one place queues are defined, so the export filter can
+            // never drift from the slugs the routes actually accept.
+            'queues' => collect(OrderQueues::slugs())
+                ->map(fn (string $slug) => ['value' => $slug, 'label' => OrderQueues::get($slug)['title']])
+                ->all(),
             'results' => $term === '' ? null : fn () => $this->search($term),
         ]);
     }

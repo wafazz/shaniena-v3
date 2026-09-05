@@ -37,6 +37,11 @@ class HandleStorefrontRequests
 
     public function handle(Request $request, Closure $next): Response
     {
+        // The console has no basket, and this runs on the whole web group.
+        if ($request->is('admin', 'admin/*')) {
+            return $next($request);
+        }
+
         $token = (string) $request->cookie(self::CART_COOKIE);
         $issued = false;
 
@@ -50,9 +55,15 @@ class HandleStorefrontRequests
 
         $response = $next($request);
 
-        return $issued
-            ? $response->withCookie(cookie(self::CART_COOKIE, $token, 60 * 24 * self::CART_COOKIE_DAYS))
-            : $response;
+        if ($issued) {
+            // setCookie(), not withCookie(): the latter is only on Laravel's
+            // own Response, so a streamed or file response threw here.
+            $response->headers->setCookie(
+                cookie(self::CART_COOKIE, $token, 60 * 24 * self::CART_COOKIE_DAYS),
+            );
+        }
+
+        return $response;
     }
 
     public static function cartToken(Request $request): string

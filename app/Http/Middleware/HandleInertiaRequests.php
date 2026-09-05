@@ -98,6 +98,9 @@ class HandleInertiaRequests extends Middleware
 
             'flash' => [
                 'success' => $request->session()->get('success'),
+                // Something was saved, but the operator needs to know a
+                // consequence they cannot see from the screen.
+                'warning' => $request->session()->get('warning'),
                 'error' => $request->session()->get('error'),
             ],
         ];
