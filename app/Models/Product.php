@@ -13,6 +13,7 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     public const TYPE_SIMPLE = 'simple';
+
     public const TYPE_VARIABLE = 'variable';
 
     protected $fillable = [

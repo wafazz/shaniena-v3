@@ -39,7 +39,7 @@ class LegacyHashUserProvider extends EloquentUserProvider
     }
 
     /** Legacy hashes are 64 lowercase hex characters; bcrypt starts with $2y$. */
-    protected function isLegacySha256(string $hash): bool
+    public static function isLegacySha256(string $hash): bool
     {
         return (bool) preg_match('/^[a-f0-9]{64}$/', $hash);
     }

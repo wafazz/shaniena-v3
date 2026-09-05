@@ -15,7 +15,13 @@ class Cart extends Model
 
     /** Verified against model/Cart.php in the source project. */
     public const STATUS_UNPAID = 0;
+
     public const STATUS_PAID = 1;
+
+    public const STATUS_RETURNED = 2;
+
+    public const STATUS_CANCELLED = 3;
+
     public const STATUS_REMOVED = 4;
 
     /** The source treats 0 and 1 together as the live basket. */

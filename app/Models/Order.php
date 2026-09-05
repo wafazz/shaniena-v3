@@ -2,29 +2,45 @@
 
 namespace App\Models;
 
+use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * One row per ordered variant. Rows are grouped into a customer-visible order
- * by `session_id`, with OrderDetail holding the shared hash_code.
+ * One row per order.
+ *
+ * Line items are NOT on this table — they are `cart` rows sharing the order's
+ * `session_id` (see model/Order.php::listByStatus, which joins cart and groups
+ * by co.id). `product_var_id` is a denormalised comma-separated list of
+ * variant ids kept for the source's own convenience; it is not a foreign key,
+ * so never hang a belongsTo off it.
  */
 class Order extends Model
 {
-    use SoftDeletes;
+    /** @use HasFactory<OrderFactory> */
+    use HasFactory, SoftDeletes;
 
     protected $table = 'customer_orders';
 
     /** Status codes, verified against OrderController::listOrders() calls. */
     public const STATUS_DRAFT = 0;
+
     public const STATUS_NEW = 1;
+
     public const STATUS_PROCESSING = 2;
+
     public const STATUS_IN_DELIVERY = 3;
+
     public const STATUS_COMPLETED = 4;
+
     public const STATUS_RETURNED = 5;
+
     public const STATUS_CANCELLED = 6;
+
     /** Awaiting payment — polled by the payment bot (Order::getPendingPayments). */
     public const STATUS_AWAITING_PAYMENT = 10;
 
@@ -37,6 +53,26 @@ class Order extends Model
         self::STATUS_RETURNED => 'Returned',
         self::STATUS_CANCELLED => 'Cancelled',
         self::STATUS_AWAITING_PAYMENT => 'Awaiting Payment',
+    ];
+
+    /**
+     * Stage transitions an operator may perform, keyed by the current status.
+     * The source scattered these across button hrefs in the view, so nothing
+     * stopped a crafted URL moving an order anywhere.
+     */
+    public const ALLOWED_TRANSITIONS = [
+        self::STATUS_NEW => [self::STATUS_PROCESSING, self::STATUS_CANCELLED],
+        self::STATUS_PROCESSING => [self::STATUS_IN_DELIVERY, self::STATUS_CANCELLED],
+        self::STATUS_IN_DELIVERY => [self::STATUS_COMPLETED, self::STATUS_RETURNED, self::STATUS_CANCELLED],
+    ];
+
+    /**
+     * Moving an order to these statuses also moves its cart lines, so stock
+     * and basket state stay consistent (OrderController::statusOrder).
+     */
+    public const CART_STATUS_ON_TRANSITION = [
+        self::STATUS_RETURNED => Cart::STATUS_RETURNED,
+        self::STATUS_CANCELLED => Cart::STATUS_CANCELLED,
     ];
 
     protected $guarded = ['id'];
@@ -58,9 +94,24 @@ class Order extends Model
         ];
     }
 
-    public function variant(): BelongsTo
+    /** The order's line items. */
+    public function lines(): HasMany
     {
-        return $this->belongsTo(ProductVariant::class, 'product_var_id');
+        return $this->hasMany(Cart::class, 'session_id', 'session_id');
+    }
+
+    /**
+     * The variant ids denormalised into product_var_id. Prefer lines(); this
+     * exists only for the source code paths that still read that column.
+     *
+     * @return list<int>
+     */
+    public function variantIds(): array
+    {
+        return array_values(array_filter(array_map(
+            'intval',
+            preg_split('/\s*,\s*/', (string) $this->product_var_id, flags: PREG_SPLIT_NO_EMPTY) ?: [],
+        )));
     }
 
     public function country(): BelongsTo
@@ -99,5 +150,16 @@ class Order extends Model
     public function customerFullName(): string
     {
         return trim("{$this->customer_name} {$this->customer_name_last}");
+    }
+
+    /** `#00000123` — the source's 8-digit padded reference, used everywhere. */
+    public function reference(): string
+    {
+        return '#'.str_pad((string) $this->id, 8, '0', STR_PAD_LEFT);
+    }
+
+    public function canMoveTo(int $status): bool
+    {
+        return in_array($status, self::ALLOWED_TRANSITIONS[$this->status] ?? [], true);
     }
 }

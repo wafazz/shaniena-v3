@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\AdminResetPassword;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -20,9 +21,13 @@ class MemberHq extends Authenticatable
 
     /** Roles, from the designation select in view/Admin/staff-details.php. */
     public const ROLE_SUPER_ADMIN = 1;
+
     public const ROLE_ACCOUNT = 2;
+
     public const ROLE_STAFF_ADMIN = 3;
+
     public const ROLE_STAFF_SALES = 4;
+
     public const ROLE_STAFF_LOGISTIC = 5;
 
     public const ROLES = [
@@ -51,6 +56,15 @@ class MemberHq extends Authenticatable
     public function activities(): HasMany
     {
         return $this->hasMany(Activity::class, 'user_id');
+    }
+
+    /**
+     * Reset links must land on the admin routes. The stock notification builds
+     * its URL from route('password.reset'), which is the customer flow.
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $this->notify(new AdminResetPassword($token));
     }
 
     public function scopeActive($query)
