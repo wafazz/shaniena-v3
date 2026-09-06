@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\BayarcashSetting;
+use App\Models\BillplzSetting;
 use App\Models\SenangPaySetting;
 use App\Models\StripeSetting;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +32,7 @@ class PaymentSettingController extends Controller
         $senangpay = SenangPaySetting::current();
         $bayarcash = BayarcashSetting::current();
         $stripe = StripeSetting::current();
+        $billplz = BillplzSetting::current();
 
         return Inertia::render('Admin/Settings/Payments', [
             'senangpay' => [
@@ -53,6 +55,17 @@ class PaymentSettingController extends Controller
                 'publish_key' => $stripe?->publish_key,
                 'secret_key' => $this->mask($stripe?->secret_key),
                 'webhook_secret' => $this->mask($stripe?->webhook_secret),
+            ],
+            'billplz' => [
+                'sandbox_production' => $billplz?->sandbox_production ?? BillplzSetting::MODE_SANDBOX,
+                'sand_box_url' => $billplz?->sand_box_url ?? 'https://www.billplz-sandbox.com/',
+                'production_url' => $billplz?->production_url ?? 'https://www.billplz.com/',
+                'bill_collection_id' => $billplz?->bill_collection_id,
+                'payment_collection_slug' => $billplz?->payment_collection_slug,
+                'bill_charge' => (float) ($billplz?->bill_charge ?? 0),
+                'payment_charge' => $billplz?->payment_charge ?? BillplzSetting::CHARGE_TO_CUSTOMER,
+                'api_key' => $this->mask($billplz?->api_key),
+                'x_signature' => $this->mask($billplz?->x_signature),
             ],
         ]);
     }
@@ -115,6 +128,30 @@ class PaymentSettingController extends Controller
         $this->log($request, 'Stripe');
 
         return back()->with('success', 'Stripe settings saved.');
+    }
+
+    public function updateBillplz(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'sandbox_production' => ['required', Rule::in([BillplzSetting::MODE_SANDBOX, BillplzSetting::MODE_PRODUCTION])],
+            'sand_box_url' => ['required', 'url', 'max:255'],
+            'production_url' => ['required', 'url', 'max:255'],
+            'bill_collection_id' => ['required', 'string', 'max:50'],
+            'payment_collection_slug' => ['nullable', 'string', 'max:100'],
+            // The flat FPX fee, and who it lands on.
+            'bill_charge' => ['required', 'numeric', 'min:0', 'max:100'],
+            'payment_charge' => ['required', Rule::in([BillplzSetting::CHARGE_TO_SELLER, BillplzSetting::CHARGE_TO_CUSTOMER])],
+            'api_key' => ['nullable', 'string', 'max:100'],
+            'x_signature' => ['nullable', 'string', 'max:1500'],
+        ]);
+
+        $row = BillplzSetting::current() ?? new BillplzSetting;
+        $row->fill($this->withoutBlanks($data, ['api_key', 'x_signature']));
+        $row->save();
+
+        $this->log($request, 'Billplz');
+
+        return back()->with('success', 'Billplz settings saved.');
     }
 
     /**

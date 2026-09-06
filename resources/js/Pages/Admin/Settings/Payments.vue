@@ -6,6 +6,7 @@ const props = defineProps({
     senangpay: { type: Object, required: true },
     bayarcash: { type: Object, required: true },
     stripe: { type: Object, required: true },
+    billplz: { type: Object, required: true },
 });
 
 const senangpay = useForm({
@@ -25,6 +26,18 @@ const bayarcash = useForm({
 const stripe = useForm({
     publish_key: props.stripe.publish_key ?? '',
     secret_key: '', webhook_secret: '',
+});
+
+const billplz = useForm({
+    sandbox_production: props.billplz.sandbox_production,
+    sand_box_url: props.billplz.sand_box_url ?? '',
+    production_url: props.billplz.production_url ?? '',
+    bill_collection_id: props.billplz.bill_collection_id ?? '',
+    payment_collection_slug: props.billplz.payment_collection_slug ?? '',
+    bill_charge: props.billplz.bill_charge ?? 0,
+    payment_charge: props.billplz.payment_charge,
+    api_key: '',
+    x_signature: '',
 });
 
 const hint = (masked) => (masked ? `Set — ends ${masked.slice(-4)}. Leave blank to keep it.` : 'Not set yet.');
@@ -138,6 +151,70 @@ const hint = (masked) => (masked ? `Set — ends ${masked.slice(-4)}. Leave blan
                             <CButton color="primary" :disabled="bayarcash.processing"
                                 @click="bayarcash.put('/admin/payment-setting/bayarcash', { preserveScroll: true })">
                                 {{ bayarcash.processing ? 'Saving…' : 'Save Bayarcash' }}
+                            </CButton>
+                        </div>
+                    </CCardBody>
+                </CCard>
+            </CCol>
+
+            <CCol :lg="6">
+                <CCard class="border">
+                    <CCardHeader class="bg-transparent"><span class="fw-semibold">Billplz</span></CCardHeader>
+                    <CCardBody class="row g-3">
+                        <div class="col-6">
+                            <CFormLabel for="bp-mode">Mode</CFormLabel>
+                            <CFormSelect id="bp-mode" v-model.number="billplz.sandbox_production">
+                                <option :value="0">Sandbox</option>
+                                <option :value="1">Production</option>
+                            </CFormSelect>
+                        </div>
+                        <div class="col-6">
+                            <CFormLabel for="bp-collection">Collection ID</CFormLabel>
+                            <CFormInput id="bp-collection" v-model="billplz.bill_collection_id" class="code"
+                                :invalid="Boolean(billplz.errors.bill_collection_id)" />
+                            <div class="form-text">The Billplz collection bills are created in.</div>
+                        </div>
+                        <div class="col-6">
+                            <CFormLabel for="bp-sandbox-url">Sandbox URL</CFormLabel>
+                            <CFormInput id="bp-sandbox-url" v-model="billplz.sand_box_url" class="code"
+                                :invalid="Boolean(billplz.errors.sand_box_url)" />
+                        </div>
+                        <div class="col-6">
+                            <CFormLabel for="bp-prod-url">Production URL</CFormLabel>
+                            <CFormInput id="bp-prod-url" v-model="billplz.production_url" class="code"
+                                :invalid="Boolean(billplz.errors.production_url)" />
+                        </div>
+                        <div class="col-6">
+                            <CFormLabel for="bp-key">API secret key</CFormLabel>
+                            <CFormInput id="bp-key" v-model="billplz.api_key" type="password" autocomplete="off" />
+                            <div class="form-text">{{ hint(props.billplz.api_key) }}</div>
+                        </div>
+                        <div class="col-6">
+                            <CFormLabel for="bp-sig">X-Signature key</CFormLabel>
+                            <CFormInput id="bp-sig" v-model="billplz.x_signature" type="password" autocomplete="off" />
+                            <div class="form-text">{{ hint(props.billplz.x_signature) }}</div>
+                        </div>
+                        <div class="col-6">
+                            <CFormLabel for="bp-charge">FPX fee (RM)</CFormLabel>
+                            <CFormInput id="bp-charge" v-model.number="billplz.bill_charge" type="number" step="0.10" min="0"
+                                :invalid="Boolean(billplz.errors.bill_charge)" />
+                        </div>
+                        <div class="col-6">
+                            <CFormLabel for="bp-who">Fee paid by</CFormLabel>
+                            <CFormSelect id="bp-who" v-model.number="billplz.payment_charge">
+                                <option :value="1">Us — absorbed</option>
+                                <option :value="2">Customer — added to the bill</option>
+                            </CFormSelect>
+                        </div>
+                        <div class="col-12">
+                            <CFormLabel for="bp-slug">Payment collection slug</CFormLabel>
+                            <CFormInput id="bp-slug" v-model="billplz.payment_collection_slug" class="code" />
+                            <div class="form-text">Optional — the public collection page, if you use one.</div>
+                        </div>
+                        <div class="col-12">
+                            <CButton color="primary" :disabled="billplz.processing"
+                                @click="billplz.put('/admin/payment-setting/billplz', { preserveScroll: true })">
+                                {{ billplz.processing ? 'Saving…' : 'Save Billplz' }}
                             </CButton>
                         </div>
                     </CCardBody>

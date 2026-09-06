@@ -26,6 +26,7 @@ class StoreSettingController extends Controller
         'cod_enabled' => ['label' => 'Cash on delivery', 'type' => 'toggle'],
         'senangpay_enabled' => ['label' => 'SenangPay', 'type' => 'toggle'],
         'bayarcash_enabled' => ['label' => 'Bayarcash', 'type' => 'toggle'],
+        'billplz_enabled' => ['label' => 'Billplz', 'type' => 'toggle'],
         'stripe_enabled' => ['label' => 'Stripe', 'type' => 'toggle'],
         'low_stock_threshold' => ['label' => 'Low stock warning below', 'type' => 'number'],
     ];

@@ -88,6 +88,8 @@ class Order extends Model
 
     public const CHANNEL_BAYARCASH = 'bayarcash';
 
+    public const CHANNEL_BILLPLZ = 'billplz';
+
     public const CHANNEL_STRIPE = 'stripe';
 
     /**

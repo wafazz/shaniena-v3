@@ -6,6 +6,7 @@ use App\Auth\LegacyHashUserProvider;
 use App\Models\MemberHq;
 use App\Services\PageAccess;
 use App\Services\Payments\BayarcashGateway;
+use App\Services\Payments\BillplzGateway;
 use App\Services\Payments\CodGateway;
 use App\Services\Payments\PaymentGateways;
 use App\Services\Payments\SenangPayGateway;
@@ -37,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PaymentGateways::class, fn ($app) => new PaymentGateways([
             $app->make(CodGateway::class),
             $app->make(SenangPayGateway::class),
+            $app->make(BillplzGateway::class),
             $app->make(BayarcashGateway::class),
         ]));
 

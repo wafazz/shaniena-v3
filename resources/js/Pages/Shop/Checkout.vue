@@ -33,6 +33,7 @@ const CHANNELS = [
     { value: 'cod', label: 'Cash on delivery' },
     { value: 'senangpay', label: 'Online banking & e-wallet (SenangPay)' },
     { value: 'bayarcash', label: 'FPX, DuitNow & BNPL (Bayarcash)' },
+    { value: 'billplz', label: 'FPX & e-wallet (Billplz)' },
     { value: 'stripe', label: 'Card (Stripe)' },
 ];
 

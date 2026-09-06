@@ -318,6 +318,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('payment-setting/senangpay', [PaymentSettingController::class, 'updateSenangPay'])->name('settings.payments.senangpay');
             Route::put('payment-setting/bayarcash', [PaymentSettingController::class, 'updateBayarcash'])->name('settings.payments.bayarcash');
             Route::put('payment-setting/stripe', [PaymentSettingController::class, 'updateStripe'])->name('settings.payments.stripe');
+            Route::put('payment-setting/billplz', [PaymentSettingController::class, 'updateBillplz'])->name('settings.payments.billplz');
         });
 
         Route::middleware('page:dhl-setting')->group(function () {
