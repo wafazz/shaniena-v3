@@ -25,7 +25,7 @@ it('serves the storefront root view with the storefront bundle', function () {
         ->and($body)->toMatch('~/build/assets/storefront-[^"]+\.js~')
         ->and($body)->not->toMatch('~/build/assets/app-[^"]+\.js~')
         ->and($body)->toContain('manifest.webmanifest');
-});
+})->skip(fn () => ! servingBuiltAssets(), 'vite dev server is running');
 
 it('declares the language, unlike the source template', function () {
     shopCountry();

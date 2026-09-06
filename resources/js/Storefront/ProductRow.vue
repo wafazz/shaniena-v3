@@ -1,33 +1,20 @@
 <script setup>
-import ProductCard from './ProductCard.vue';
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import AshionRow from './Themes/Ashion/ProductRow.vue';
+import ElectroRow from './Themes/Electro/ProductRow.vue';
 
-/**
- * One horizontal product row. The source repeated this block four times across
- * the homepage, each copy with slightly different bugs.
- */
+/** One horizontal product row, in the shop's chosen theme. */
 defineProps({
     title: { type: String, required: true },
     products: { type: Array, default: () => [] },
     empty: { type: String, default: 'Nothing here yet.' },
 });
+
+const page = usePage();
+const row = computed(() => (page.props.shop?.theme === 'electro' ? ElectroRow : AshionRow));
 </script>
 
 <template>
-    <section v-reveal class="product spad">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="section-title"><h4>{{ title }}</h4></div>
-                </div>
-            </div>
-
-            <div v-if="products.length" class="row">
-                <div v-for="product in products" :key="product.id" class="col-lg-3 col-md-4 col-sm-6">
-                    <ProductCard :product="product" />
-                </div>
-            </div>
-
-            <p v-else class="text-center mb-0">{{ empty }}</p>
-        </div>
-    </section>
+    <component :is="row" :title="title" :products="products" :empty="empty" />
 </template>

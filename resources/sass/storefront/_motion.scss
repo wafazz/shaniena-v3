@@ -17,6 +17,11 @@
 // ---------------------------------------------------------------------------
 
 :root {
+  // The theme's accent, published so the few places that cannot read the Sass
+  // variable — a scoped component style, the Inertia progress bar — follow the
+  // shop's colour instead of hardcoding Ashion's red.
+  --shop-accent: #{$primary-color};
+
   // Decelerating: fast to start, settles. The default for anything entering.
   --ease-out: cubic-bezier(0.22, 0.7, 0.3, 1);
   // A little overshoot, used only where something should feel physical — the

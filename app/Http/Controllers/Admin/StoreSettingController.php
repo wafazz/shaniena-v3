@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Storefront\Themes;
 use App\Services\StoreSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,6 +31,8 @@ class StoreSettingController extends Controller
         'billplz_enabled' => ['label' => 'Billplz', 'type' => 'toggle'],
         'stripe_enabled' => ['label' => 'Stripe', 'type' => 'toggle'],
         'low_stock_threshold' => ['label' => 'Low stock warning below', 'type' => 'number'],
+        // Rendered as a picker of its own, not as a text field.
+        Themes::SETTING => ['label' => 'Storefront theme', 'type' => 'theme'],
     ];
 
     public function edit(StoreSettings $settings): Response
@@ -38,8 +42,13 @@ class StoreSettingController extends Controller
         return Inertia::render('Admin/Settings/Store', [
             'fields' => collect(self::KEYS)->map(fn (array $meta, string $key) => $meta + [
                 'key' => $key,
-                'value' => $current[$key] ?? ($meta['type'] === 'toggle' ? '0' : ''),
+                'value' => $current[$key] ?? match ($meta['type']) {
+                    'toggle' => '0',
+                    'theme' => Themes::DEFAULT,
+                    default => '',
+                },
             ])->values()->all(),
+            'themes' => Themes::choices(),
         ]);
     }
 
@@ -48,6 +57,9 @@ class StoreSettingController extends Controller
         $data = $request->validate([
             'settings' => ['required', 'array'],
             'settings.*' => ['nullable', 'string', 'max:5000'],
+            // The theme names a Vite entry and a stylesheet, so it is an
+            // allowlist rather than free text.
+            'settings.'.Themes::SETTING => ['nullable', Rule::in(Themes::keys())],
         ])['settings'];
 
         $settings->setMany(array_intersect_key($data, self::KEYS));

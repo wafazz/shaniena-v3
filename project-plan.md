@@ -447,3 +447,4 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 2026-09-06 | Pest suite after Phase 9 | 404 passed, 1925 assertions ✓ |
 | 2026-09-06 | Billplz: bill creation fields, cents, fee ownership, callback via API re-read, replay, short payment, masked keys | 13 tests, 43 assertions ✓ |
 | 2026-09-06 | Security gate on the Billplz change | 1 Medium (editable API endpoint → key exfiltration + SSRF), fixed and covered by a test; no bypass found in the callback path ✓ |
+| 2026-09-06 | Storefront themes (Ashion / Electro) | one stylesheet served per theme and never both, every storefront screen renders under either, unknown theme falls back to Ashion ✓ |

@@ -48,6 +48,21 @@ function adminWith(array $slugs = [], int $role = MemberHq::ROLE_STAFF_ADMIN): M
     return $user;
 }
 
+/**
+ * Whether the app is serving built assets rather than Vite's dev server.
+ *
+ * `npm run dev` writes `public/hot`, and Laravel then emits dev-server URLs
+ * for every asset. Tests that assert on the built filenames — which bundle is
+ * served, that the console's chunk is absent — are asserting something that is
+ * simply not true while a developer has Vite running, and would fail on their
+ * machine and nowhere else. They skip instead, and still run in CI and on a
+ * deploy, where nothing has written that file.
+ */
+function servingBuiltAssets(): bool
+{
+    return ! is_file(public_path('hot')) && is_file(public_path('build/manifest.json'));
+}
+
 function shopCountry(): ListCountry
 {
     // Not firstOrCreate on an id: `id` is not fillable, so the row would be

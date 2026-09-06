@@ -8,7 +8,7 @@ It is one deployment serving two surfaces:
 
 | Surface | Who | Stack |
 |---|---|---|
-| **Storefront** — 19 screens | Customers, in Malaysia and overseas | Vue 3 + Inertia on the Ashion template, server-rendered for crawlers |
+| **Storefront** — 19 screens | Customers, in Malaysia and overseas | Vue 3 + Inertia, server-rendered for crawlers, in one of two themes HQ picks |
 | **Admin console** — 31 screens | HQ staff: orders, stock, products, couriers, settings | Vue 3 + Inertia on CoreUI, behind a per-page permission matrix |
 
 Fewer components than the source had screens (43 admin, 23 storefront), because
@@ -87,6 +87,7 @@ resources/js/
   Pages/Admin/                31 console screens
   Pages/Shop/                 19 storefront screens
   Storefront/                 shop components — cart drawer, visitor card, product card, hero, SEO
+  Storefront/Themes/          Ashion and Electro: header, footer, product tile
   Layouts/                    AdminLayout, StorefrontLayout, AuthLayout
 resources/sass/
   app.scss                    console (CoreUI)
@@ -95,6 +96,15 @@ deploy/                       nginx, supervisor, cron, deploy.sh, rollback.sh
 docs/                         deployment runbook, cutover and rollback plan
 tests/                        415 Pest tests, plus a browser journey in tests/e2e
 ```
+
+**Two storefront themes.** HQ chooses one in Store Settings — **Ashion**, the
+white editorial shop, or **Electro**, a denser catalogue with search and basket
+in the header and a category bar under it. A theme owns the chrome and the
+product tiles; the pages are the same components either way, so there is no
+second checkout to keep in step. Each theme is its own stylesheet entry
+(`resources/sass/storefront.scss`, `resources/sass/electro.scss`) and the root
+view serves exactly one — a shop on Ashion downloads no Electro. The smoke walk
+runs every storefront screen under both.
 
 **Two bundles, on purpose.** The shop must not download CoreUI and the console
 must not download Ashion; the SSR bundle resolves `Pages/Shop/**` only, because

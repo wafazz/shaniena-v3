@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\MemberHq;
 use App\Services\AdminNavigation;
+use App\Services\Storefront\Themes;
 use App\Services\StoreSettings;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -89,6 +90,9 @@ class HandleInertiaRequests extends Middleware
                     ? ['id' => $country->id, 'name' => $country->name, 'sign' => $country->sign]
                     : null,
                 'nav' => HandleStorefrontRequests::navigation(),
+                // Which skin to render. The stylesheet is chosen in the root
+                // view; this is what tells the components apart.
+                'theme' => app(Themes::class)->current(),
                 // The phone menu offers "my account" or "sign in", and
                 // guessing wrong sends a signed-in customer to a login form.
                 // `name`, not `f_name` — that one is the staff table's column,

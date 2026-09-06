@@ -14,12 +14,14 @@ use App\Services\Shipping\Couriers;
 use App\Services\Shipping\DhlGateway;
 use App\Services\Shipping\JtExpressGateway;
 use App\Services\Shipping\NinjaVanGateway;
+use App\Services\Storefront\Themes;
 use App\Services\StoreSettings;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 
@@ -60,6 +62,19 @@ class AppServiceProvider extends ServiceProvider
 
         $this->registerGates();
         $this->registerRateLimiters();
+
+        // The storefront's root view needs to know which theme it is serving
+        // before Inertia renders anything, so it is bound here rather than
+        // reached for inside the Blade.
+        View::composer('storefront', function ($view) {
+            $themes = app(Themes::class);
+
+            $view->with([
+                'theme' => $themes->current(),
+                'themeCss' => $themes->css(),
+                'themeFonts' => $themes->fonts(),
+            ]);
+        });
     }
 
     /**

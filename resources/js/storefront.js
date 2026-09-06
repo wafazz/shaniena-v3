@@ -1,4 +1,6 @@
-import '../sass/storefront.scss';
+// No stylesheet import here on purpose. The theme's entry is chosen in the
+// root view — importing one from the script as well would load Ashion's sheet
+// alongside Electro's, and whichever landed second would win the palette.
 import './bootstrap';
 
 import { createApp, h } from 'vue';
@@ -24,7 +26,11 @@ createInertiaApp({
             .mount(el);
     },
     progress: {
-        color: '#ca1515',
+        // Read from the theme's stylesheet, which is already in <head> by the
+        // time this runs, so the bar matches whichever shop is being served.
+        color: getComputedStyle(document.documentElement)
+            .getPropertyValue('--shop-accent')
+            .trim() || '#ca1515',
     },
 });
 

@@ -1,0 +1,514 @@
+// ---------------------------------------------------------------------------
+// Shaniena storefront — Electro theme
+//
+// The second of the two skins HQ can choose between in Store Settings. Built
+// in the shape of the Electro storefront template: a utility bar, a header
+// whose middle is a search box with a category selector, the basket beside it,
+// a category bar under that, and bordered product tiles with the price and the
+// button always visible.
+//
+// It is a separate Vite entry, so a shop running Ashion never downloads a byte
+// of this and vice versa.
+//
+// What it does NOT do is fork the pages. The basket, the checkout, the product
+// detail and the blog are the same components in both themes, styled by the
+// same partials — they are pulled in below with Electro's palette and face
+// substituted through the variables they already read. Two markups for a
+// checkout is how one of them quietly stops being tested.
+// ---------------------------------------------------------------------------
+
+// Electro's own palette, measured from the template: primary #F28B00,
+// secondary #F92400, light #F5F5F5, dark #484848, body text #919191.
+$primary-color: #f28b00;
+$electro-hot: #f92400;
+$electro-dark: #2f3038;
+$electro-darker: #23242a;
+$electro-line: #e6e6e6;
+$electro-muted: #919191;
+
+$link-decoration: none;
+$link-color: #303030;
+$link-hover-color: $primary-color;
+$font-family-sans-serif: 'Roboto', -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/utilities";
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+@import "bootstrap/scss/utilities/api";
+
+// The shared page styles. `$primary-color` above is set before this and every
+// partial declares it `!default`, so the whole shop re-skins to Electro's
+// orange without a single override.
+@import "storefront/variable";
+@import "storefront/mixins";
+
+@import "storefront/base";
+@import "storefront/home-page";
+@import "storefront/breadcrumb";
+@import "storefront/categories";
+@import "storefront/product";
+@import "storefront/shop";
+@import "storefront/product-details";
+@import "storefront/shop-cart";
+@import "storefront/checkout";
+@import "storefront/blog";
+@import "storefront/blog-sidebar";
+@import "storefront/blog-details";
+@import "storefront/contact";
+@import "storefront/responsive";
+
+@import "storefront/motion";
+@import "storefront/mobile-menu";
+@import "storefront/visitor-card";
+
+@import "storefront/elegant-icons.css";
+@import "storefront/font-awesome.min.css";
+
+// Ashion's own header and footer partials are deliberately not imported: this
+// theme brings its own, and loading both would mean two sets of rules fighting
+// over `.header`.
+
+// ---------------------------------------------------------------------------
+// Utility bar
+// ---------------------------------------------------------------------------
+
+.electro-topbar {
+  background: $electro-darker;
+  color: rgba(255, 255, 255, .72);
+  font-size: 12.5px;
+  padding: 7px 0;
+
+  a {
+    color: rgba(255, 255, 255, .72);
+    transition: color var(--t-fast) linear;
+
+    &:hover { color: $primary-color; }
+  }
+
+  i { margin-right: 5px; color: $primary-color; }
+
+  &__contact a { margin-right: 18px; }
+
+  &__links a {
+    margin-left: 16px;
+
+    &:first-child { margin-left: 0; }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Header: logo, search, basket
+// ---------------------------------------------------------------------------
+
+.electro-header {
+  background: $white-color;
+  border-bottom: 1px solid $electro-line;
+  padding: 16px 0;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    // Wraps rather than pushing the basket off the right edge: at 390 the
+    // three of them do not fit on one line, and an overflowing header is a
+    // page that scrolls sideways.
+    flex-wrap: wrap;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+}
+
+.electro-logo {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+  color: $electro-dark;
+  white-space: nowrap;
+
+  &:hover { color: $primary-color; }
+}
+
+.electro-search {
+  display: flex;
+  flex: 1;
+  // Without this a flex child refuses to shrink below its content, and the
+  // input's intrinsic width is what pushed the header over.
+  min-width: 0;
+  max-width: 640px;
+  border: 2px solid $primary-color;
+  background: $white-color;
+
+  &__scope {
+    border: 0;
+    border-right: 1px solid $electro-line;
+    background: #fafafa;
+    padding: 0 12px;
+    font-size: 13px;
+    color: #555;
+    max-width: 160px;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    padding: 11px 14px;
+    font-size: 14px;
+
+    &::placeholder { color: #adadad; }
+  }
+
+  button {
+    border: 0;
+    background: $primary-color;
+    color: $white-color;
+    width: 54px;
+    font-size: 18px;
+    transition: background var(--t-fast) linear;
+
+    &:hover { background: $electro-hot; }
+  }
+}
+
+.electro-basket {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  background: none;
+  color: $electro-dark;
+  position: relative;
+  padding: 4px 6px;
+
+  > span:first-child { font-size: 22px; color: $primary-color; }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    text-align: left;
+
+    small { font-size: 11px; color: $electro-muted; }
+    b { font-size: 13px; font-variant-numeric: tabular-nums; }
+  }
+
+  &__count {
+    position: absolute;
+    top: -2px;
+    left: 16px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: $electro-hot;
+    color: $white-color;
+    font-size: 10px;
+    line-height: 18px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__count.is-bumped { animation: badge-pop var(--t-slow) var(--ease-spring); }
+}
+
+.electro-burger {
+  display: none;
+  border: 1px solid $electro-line;
+  background: none;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  color: $electro-dark;
+}
+
+// ---------------------------------------------------------------------------
+// Category bar
+// ---------------------------------------------------------------------------
+
+.electro-nav {
+  background: $electro-dark;
+
+  &__scroll {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    // Sideways rather than hidden on a narrow screen: a nav that disappears at
+    // a breakpoint is a removed feature.
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  a {
+    color: rgba(255, 255, 255, .82);
+    font-size: 13.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 13px 16px;
+    transition: background var(--t-fast) linear, color var(--t-fast) linear;
+
+    &:hover { background: rgba(255, 255, 255, .07); color: $white-color; }
+
+    &.is-current { background: $primary-color; color: $white-color; }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Product tiles
+// ---------------------------------------------------------------------------
+
+.electro-row {
+  padding: 42px 0;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+
+    h4 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      color: $electro-dark;
+      white-space: nowrap;
+    }
+
+    // The rule runs to the edge and the title sits against it.
+    &::after {
+      content: "";
+      flex: 1;
+      height: 2px;
+      background: $electro-line;
+    }
+  }
+
+  &__empty {
+    color: $electro-muted;
+    text-align: center;
+    padding: 28px 0;
+    margin: 0;
+  }
+}
+
+.electro-card {
+  border: 1px solid $electro-line;
+  background: $white-color;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: border-color var(--t-base) var(--ease-out), box-shadow var(--t-base) var(--ease-out);
+
+  &:hover {
+    border-color: rgba($primary-color, .55);
+    box-shadow: 0 10px 30px -22px rgba(17, 17, 17, .6);
+  }
+
+  &__pic {
+    position: relative;
+    overflow: hidden;
+  }
+
+  &__img {
+    aspect-ratio: 1;
+    background: #fafafa center / cover no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--t-slow) var(--ease-out);
+
+    span {
+      font-size: 11px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: #b3adad;
+    }
+  }
+
+  &:hover &__img:not(.is-empty) { transform: scale(1.05); }
+
+  &__badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: $electro-hot;
+    color: $white-color;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    padding: 3px 8px;
+
+    &.is-out {
+      left: auto;
+      right: 10px;
+      background: $electro-dark;
+    }
+  }
+
+  &__body {
+    padding: 13px 14px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+
+  h6 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+
+    a { color: $electro-dark; }
+    a:hover { color: $primary-color; }
+  }
+
+  &__price {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: auto;
+    font-variant-numeric: tabular-nums;
+
+    b { color: $primary-color; font-size: 16px; font-weight: 700; }
+    s { color: $electro-muted; font-size: 13px; }
+  }
+
+  &__btn {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: $electro-dark;
+    color: $white-color;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 10px 8px;
+    text-align: center;
+    transition: background var(--t-fast) linear, color var(--t-fast) linear;
+
+    &:hover:not(:disabled) { background: $primary-color; color: $white-color; }
+    &:disabled { opacity: .6; cursor: not-allowed; }
+    &.is-done { background: #2f7a52; }
+
+    &--ghost {
+      background: $white-color;
+      color: $electro-dark;
+      border: 1px solid $electro-line;
+    }
+  }
+
+  &.is-sold-out &__img { filter: grayscale(1); opacity: .75; }
+}
+
+// ---------------------------------------------------------------------------
+// Footer
+// ---------------------------------------------------------------------------
+
+.electro-footer {
+  background: $electro-dark;
+  color: rgba(255, 255, 255, .7);
+  padding: 44px 0 0;
+  font-size: 14px;
+
+  h6 {
+    color: $white-color;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  ul { list-style: none; padding: 0; margin: 0; }
+
+  li { padding: 5px 0; }
+
+  a {
+    color: rgba(255, 255, 255, .7);
+    transition: color var(--t-fast) linear;
+
+    &:hover { color: $primary-color; }
+  }
+
+  i { color: $primary-color; margin-right: 6px; }
+
+  &__social {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+
+    a {
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--t-fast) linear, border-color var(--t-fast) linear;
+
+      i { margin: 0; }
+
+      &:hover { background: $primary-color; border-color: $primary-color; i { color: $white-color; } }
+    }
+  }
+
+  &__legal {
+    margin-top: 34px;
+    border-top: 1px solid rgba(255, 255, 255, .12);
+    padding: 16px 0;
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, .55);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Narrow screens
+// ---------------------------------------------------------------------------
+
+@media (max-width: 767px) {
+  // Logo and basket on one line, the search under them at full width — it is
+  // the control most used on a phone and it gets the room.
+  .electro-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .electro-header__actions { margin-left: auto; }
+}
+
+@media (max-width: 991px) {
+  .electro-search__scope { display: none; }
+
+  .electro-basket__text { display: none; }
+
+  .electro-basket__count { left: auto; right: -4px; }
+
+  .electro-burger { display: flex; align-items: center; justify-content: center; }
+}
+
+@media (max-width: 575px) {
+  .electro-topbar__contact { display: none; }
+
+  .electro-header__row { gap: 12px; }
+
+  .electro-logo { font-size: 21px; }
+
+  .electro-row { padding: 28px 0; }
+}

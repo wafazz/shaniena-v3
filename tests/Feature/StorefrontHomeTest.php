@@ -27,7 +27,7 @@ it('renders the shop through the storefront root view, not the admin one', funct
     expect($response->getContent())
         ->toMatch('~/build/assets/storefront-[^"]+\.js~')
         ->not->toMatch('~/build/assets/app-[^"]+\.js~');
-});
+})->skip(fn () => ! servingBuiltAssets(), 'vite dev server is running');
 
 it('shares the selling country, nav and cart badge with every shop page', function () {
     sellingCountry();

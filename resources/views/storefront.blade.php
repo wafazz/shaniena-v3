@@ -14,19 +14,22 @@
     <link rel="icon" type="image/png" href="/storefront/img/logo.png">
     <link rel="apple-touch-icon" href="/storefront/img/apple-touch-icon.png">
 
-    {{-- Montserrat and Cookie, the two faces Ashion is set in. --}}
+    {{-- The faces the chosen theme is set in — Montserrat and Cookie for
+         Ashion, Roboto for Electro. --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cookie&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="{{ $themeFonts }}" rel="stylesheet">
 
     {{-- No <title> here: @inertiaHead emits it, and a second one would win
          with crawlers. --}}
 
     @routes
-    @vite(['resources/sass/storefront.scss', 'resources/js/storefront.js'])
+    {{-- One theme's stylesheet, never both: the shop that is not switched on
+         is not downloaded. --}}
+    @vite([$themeCss, 'resources/js/storefront.js'])
     @inertiaHead
 </head>
-<body>
+<body class="theme-{{ $theme }}">
     @inertia
 </body>
 </html>

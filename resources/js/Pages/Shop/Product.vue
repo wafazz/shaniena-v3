@@ -215,7 +215,8 @@ function addToCart() {
 }
 
 .product__thumb-btn.active {
-    border-color: #ca1515;
+    /* Follows the theme rather than pinning Ashion's red. */
+    border-color: var(--shop-accent, #ca1515);
 }
 
 .product__thumb-btn img {

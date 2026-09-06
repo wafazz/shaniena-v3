@@ -2,14 +2,18 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import AdminLayout from '../../../Layouts/AdminLayout.vue';
 
-const props = defineProps({ fields: { type: Array, required: true } });
+const props = defineProps({
+    fields: { type: Array, required: true },
+    themes: { type: Array, required: true },
+});
 
 const form = useForm({
     settings: Object.fromEntries(props.fields.map((f) => [f.key, f.value])),
 });
 
 const toggles = props.fields.filter((f) => f.type === 'toggle');
-const inputs = props.fields.filter((f) => f.type !== 'toggle');
+const inputs = props.fields.filter((f) => f.type !== 'toggle' && f.type !== 'theme');
+const themeField = props.fields.find((f) => f.type === 'theme');
 
 function submit() {
     form.put('/admin/store-setting', { preserveScroll: true });
@@ -36,6 +40,32 @@ function submit() {
                 </CCol>
 
                 <CCol :lg="5">
+                    <CCard v-if="themeField" class="border mb-3">
+                        <CCardHeader class="bg-transparent"><span class="fw-semibold">Storefront theme</span></CCardHeader>
+                        <CCardBody>
+                            <p class="small text-body-secondary">
+                                Which design the shop wears. It changes the header, the navigation, the product
+                                tiles and the palette — the pages themselves are the same either way.
+                            </p>
+
+                            <!-- Cards rather than a dropdown: the thing being
+                                 chosen is a look, so it should be shown. -->
+                            <div v-for="theme in themes" :key="theme.key" class="theme-choice p-3 mb-2"
+                                :class="{ 'is-chosen': form.settings[themeField.key] === theme.key }"
+                                role="button" tabindex="0"
+                                @click="form.settings[themeField.key] = theme.key"
+                                @keyup.enter="form.settings[themeField.key] = theme.key">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="theme-choice__swatch" :style="{ background: theme.accent }"></span>
+                                    <span class="fw-semibold">{{ theme.label }}</span>
+                                    <span v-if="form.settings[themeField.key] === theme.key"
+                                        class="badge text-bg-secondary ms-auto">In use</span>
+                                </div>
+                                <p class="small text-body-secondary mb-0 mt-1">{{ theme.description }}</p>
+                            </div>
+                        </CCardBody>
+                    </CCard>
+
                     <CCard class="border">
                         <CCardHeader class="bg-transparent"><span class="fw-semibold">Checkout options</span></CCardHeader>
                         <CCardBody>
@@ -68,3 +98,27 @@ function submit() {
         </form>
     </AdminLayout>
 </template>
+
+<style scoped>
+.theme-choice {
+    border: 1px solid var(--cui-border-color);
+    cursor: pointer;
+    transition: border-color .15s linear, background .15s linear;
+}
+
+.theme-choice:hover {
+    border-color: var(--cui-secondary);
+}
+
+.theme-choice.is-chosen {
+    border-color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), .04);
+}
+
+.theme-choice__swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+}
+</style>
