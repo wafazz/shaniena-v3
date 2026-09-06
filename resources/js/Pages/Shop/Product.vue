@@ -223,4 +223,21 @@ function addToCart() {
     height: 100%;
     object-fit: cover;
 }
+
+/* The template gives this list no styling of its own, so it rendered with
+   browser-default disc markers and no padding to hold them: every bullet sat
+   outside the container and was clipped against its left edge. It is a
+   label/value spec list, not prose — it does not want markers at all. */
+.product__details__text ul {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 0;
+}
+
+.product__details__text ul li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    padding: 4px 0;
+}
 </style>

@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 /**
  * "Add to home screen".
@@ -12,6 +12,13 @@ const STORAGE_KEY = 'shaniena:install-dismissed';
 
 const visible = ref(false);
 let deferred = null;
+
+// The bar is fixed across the bottom of the screen, where the visitor card
+// also lives on a phone. The card steps aside for it rather than the two
+// stacking on top of each other.
+watch(visible, (showing) => {
+    document.body.classList.toggle('has-install-banner', showing);
+});
 
 function dismissedBefore() {
     try {
@@ -74,6 +81,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    document.body.classList.remove('has-install-banner');
     window.removeEventListener('beforeinstallprompt', onPrompt);
     window.removeEventListener('appinstalled', onInstalled);
 });

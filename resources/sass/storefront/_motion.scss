@@ -84,12 +84,18 @@
   box-shadow: 0 1px 0 rgba(17, 17, 17, 0.08), 0 8px 24px -18px rgba(17, 17, 17, 0.4);
   transition: transform var(--t-base) var(--ease-out);
 
-  .header__logo,
-  .header__menu,
-  .header__right {
-    padding-top: 12px;
-    padding-bottom: 12px;
-    transition: padding var(--t-base) var(--ease-out);
+  // Condensing is a desktop move only. Ashion positions the mobile menu
+  // button (.canvas__open) absolutely against the header's full height, so
+  // shrinking the header on a phone left the button hanging 11px below its
+  // own header, over the page.
+  @media (min-width: 992px) {
+    .header__logo,
+    .header__menu,
+    .header__right {
+      padding-top: 12px;
+      padding-bottom: 12px;
+      transition: padding var(--t-base) var(--ease-out);
+    }
   }
 }
 
@@ -281,12 +287,19 @@ body.has-stuck-header .header-spacer {
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform var(--t-base) var(--ease-out);
+  // Hidden, not merely off-screen: while it was only translated away, its
+  // Checkout and Start shopping links stayed in the tab order, so keyboard
+  // focus disappeared into a panel nobody could see.
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform var(--t-base) var(--ease-out), visibility 0s linear var(--t-base);
   box-shadow: -12px 0 40px -24px rgba(17, 17, 17, 0.6);
 
   &.is-open {
     transform: none;
-    transition-timing-function: var(--ease-spring);
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform var(--t-base) var(--ease-spring), visibility 0s;
   }
 
   &__head {

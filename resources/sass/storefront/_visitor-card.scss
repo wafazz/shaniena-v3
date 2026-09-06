@@ -157,4 +157,9 @@ body.drawer-open .visitor-card {
   }
 
   .visitor-card__toggle { padding: 9px 11px; }
+
+  // The install prompt takes the whole bottom of a phone screen. Two fixed
+  // panels in that corner is one too many, and the prompt is the one that
+  // goes away by itself.
+  body.has-install-banner .visitor-card { display: none; }
 }
