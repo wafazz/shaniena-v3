@@ -1,0 +1,297 @@
+// ---------------------------------------------------------------------------
+// Phone navigation
+//
+// Replaces the leftovers of Ashion's SlickNav menu, which was never ported:
+// one flat list of browser-default bullets holding brands, categories, the
+// country switch and every page, with nothing to tell them apart.
+//
+// The panel is its own namespace rather than an override of `.offcanvas__*`,
+// because there is nothing of the template's mobile menu left to extend — its
+// styling belonged to the jQuery plugin.
+// ---------------------------------------------------------------------------
+
+.shop-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 17, 17, .45);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--t-base) linear, visibility 0s linear var(--t-base);
+
+  &.is-open {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--t-base) linear, visibility 0s;
+  }
+}
+
+.shop-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1001;
+  width: min(340px, 86vw);
+  background: $white-color;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  // Hidden rather than merely off-screen: every link in here would otherwise
+  // sit in the tab order of a page whose menu is shut.
+  visibility: hidden;
+  transition: transform var(--t-base) var(--ease-out), visibility 0s linear var(--t-base);
+  box-shadow: 12px 0 40px -24px rgba(17, 17, 17, .6);
+
+  &.is-open {
+    transform: none;
+    visibility: visible;
+    transition: transform var(--t-base) var(--ease-spring), visibility 0s;
+  }
+}
+
+body.menu-open {
+  overflow: hidden;
+}
+
+// --- top bar ---------------------------------------------------------------
+
+.shop-menu__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 8px 16px 20px;
+  border-bottom: 1px solid #ededed;
+}
+
+.shop-menu__brand {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: $heading-color;
+}
+
+.shop-menu__close {
+  border: 0;
+  background: none;
+  color: $heading-color;
+  font-size: 28px;
+  line-height: 1;
+  // 44px, because it is the control people reach for with a thumb.
+  width: 44px;
+  height: 44px;
+  transition: color var(--t-fast) linear, transform var(--t-fast) var(--ease-out);
+
+  &:hover { color: $primary-color; transform: rotate(90deg); }
+}
+
+// --- search ----------------------------------------------------------------
+
+.shop-menu__search {
+  display: flex;
+  align-items: stretch;
+  margin: 16px 20px 0;
+  border: 1px solid #e3dfdf;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    padding: 11px 13px;
+    font-size: 14px;
+    background: none;
+
+    &::placeholder { color: #a9a2a2; }
+  }
+
+  button {
+    border: 0;
+    background: $primary-color;
+    color: $white-color;
+    width: 46px;
+    font-size: 17px;
+    transition: background var(--t-fast) linear;
+
+    &:hover { background: darken($primary-color, 6%); }
+  }
+}
+
+// --- basket and country ----------------------------------------------------
+
+.shop-menu__quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 20px 4px;
+}
+
+.shop-menu__quick-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #e3dfdf;
+  background: none;
+  color: $heading-color;
+  font-size: 13px;
+  text-align: left;
+  transition: border-color var(--t-fast) linear, color var(--t-fast) linear;
+
+  span:first-child { font-size: 16px; color: #8a8382; }
+
+  span + span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  b {
+    margin-left: auto;
+    min-width: 21px;
+    height: 21px;
+    border-radius: 11px;
+    background: $primary-color;
+    color: $white-color;
+    font-size: 11px;
+    line-height: 21px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:hover,
+  &:focus-visible {
+    border-color: $primary-color;
+    color: $primary-color;
+  }
+}
+
+// --- the catalogue ---------------------------------------------------------
+
+.shop-menu__nav {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 0 16px;
+}
+
+.shop-menu__group {
+  padding: 12px 20px 4px;
+
+  // The label is what makes a brand read as a brand. The source's menu had
+  // none, so "Corwin, Berge and Hagenes" sat between "Home" and "Body Care"
+  // as though it were a page.
+  h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #a9a2a2;
+    margin: 0 0 2px;
+  }
+}
+
+.shop-menu__row {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f4f1f1;
+  color: $heading-color;
+  font-size: 15px;
+  transition: color var(--t-fast) linear, padding-left var(--t-fast) var(--ease-out);
+
+  &:last-child { border-bottom: 0; }
+
+  &::after {
+    content: "›";
+    margin-left: auto;
+    color: #cfc8c8;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: $primary-color;
+    padding-left: 4px;
+  }
+
+  &.is-current {
+    color: $primary-color;
+    font-weight: 600;
+
+    &::after { color: $primary-color; }
+  }
+}
+
+// --- contact ---------------------------------------------------------------
+
+.shop-menu__foot {
+  border-top: 1px solid #ededed;
+  padding: 14px 20px;
+}
+
+.shop-menu__contact {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  color: $heading-color;
+  font-size: 14px;
+
+  i { color: #25d366; font-size: 18px; }
+
+  &:hover { color: $primary-color; }
+}
+
+// --- the basket, in the phone header ---------------------------------------
+//
+// The template hides `.header__right` entirely below 992px, which took the
+// basket with it: on a phone there was no way to reach the cart except through
+// the menu. This is the one control that comes back.
+
+.header__cart-mobile {
+  display: none;
+}
+
+@media (max-width: 991px) {
+  // Ashion never positions the header itself, so its absolutely positioned
+  // menu button falls back to the page as its containing block and only looks
+  // right by coincidence. Anchoring both buttons to the header makes them
+  // land in the same place whether it is in the flow or stuck.
+  .header { position: relative; }
+
+  .header__cart-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    // Level with .canvas__open, one button-width plus a gap to its left.
+    top: 24px;
+    right: 62px;
+    width: 35px;
+    height: 35px;
+    border: 0;
+    background: none;
+    color: #222;
+    font-size: 21px;
+    z-index: 3;
+  }
+
+  .header__cart-mobile .tip {
+    position: absolute;
+    top: -3px;
+    right: -6px;
+    min-width: 17px;
+    height: 17px;
+    border-radius: 9px;
+    background: $primary-color;
+    color: $white-color;
+    font-size: 10px;
+    line-height: 17px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+}

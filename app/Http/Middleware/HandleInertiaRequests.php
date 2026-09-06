@@ -89,6 +89,13 @@ class HandleInertiaRequests extends Middleware
                     ? ['id' => $country->id, 'name' => $country->name, 'sign' => $country->sign]
                     : null,
                 'nav' => HandleStorefrontRequests::navigation(),
+                // The phone menu offers "my account" or "sign in", and
+                // guessing wrong sends a signed-in customer to a login form.
+                // `name`, not `f_name` — that one is the staff table's column,
+                // and on a customer it is simply absent.
+                'customer' => ($customer = $request->user('web'))
+                    ? ['name' => $customer->name ?: null]
+                    : null,
                 // Absolute, and without the query string: a filtered listing is
                 // the same page as the unfiltered one.
                 'canonical' => $request->url(),

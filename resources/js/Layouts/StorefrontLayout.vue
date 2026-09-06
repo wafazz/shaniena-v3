@@ -4,6 +4,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import InstallBanner from '../Storefront/InstallBanner.vue';
 import CartDrawer from '../Storefront/CartDrawer.vue';
 import VisitorCard from '../Storefront/VisitorCard.vue';
+import MobileMenu from '../Storefront/MobileMenu.vue';
 import { useCart } from '../Storefront/useCart';
 
 /**
@@ -126,42 +127,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div>
-        <!-- Mobile menu. Ashion shipped this as SlickNav; it is plain state now. -->
-        <div class="offcanvas-menu-overlay" :class="{ active: offcanvasOpen }" @click="offcanvasOpen = false"></div>
-        <div class="offcanvas-menu-wrapper" :class="{ active: offcanvasOpen }">
-            <div class="offcanvas__close" role="button" tabindex="0" aria-label="Close menu"
-                @click="offcanvasOpen = false" @keyup.enter="offcanvasOpen = false">+</div>
-
-            <ul class="offcanvas__widget">
-                <li>
-                    <span class="icon_bag_alt"></span>
-                    <button type="button" class="cart-trigger"
-                        @click="offcanvasOpen = false; openCart()">{{ cartCount }} items</button>
-                </li>
-            </ul>
-
-            <div class="offcanvas__auth">
-                <ul>
-                    <li><Link href="/change-country">{{ country ? country.name : 'Change Country' }}</Link></li>
-                </ul>
-            </div>
-
-            <nav class="slicknav_nav">
-                <ul>
-                    <li><Link href="/">Home</Link></li>
-                    <li v-for="brand in nav.brands" :key="`m-b-${brand.id}`">
-                        <Link :href="`/brands/${brand.slug ?? brand.id}`">{{ brand.name }}</Link>
-                    </li>
-                    <li v-for="category in nav.categories" :key="`m-c-${category.id}`">
-                        <Link :href="`/categories/${category.slug ?? category.id}`">{{ category.name }}</Link>
-                    </li>
-                    <li><Link href="/promo-item">Promos</Link></li>
-                    <li><Link href="/checkout">Checkout</Link></li>
-                    <li><Link href="/track-order">Tracking</Link></li>
-                    <li><Link href="/contact">Contact</Link></li>
-                </ul>
-            </nav>
-        </div>
+        <MobileMenu :open="offcanvasOpen" @close="offcanvasOpen = false" />
 
         <header ref="header" class="header" :class="{ 'is-stuck': stuck, 'is-hidden': stuck && hidden }">
             <div class="container-fluid">
@@ -237,6 +203,15 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
                 </div>
+
+                <!-- The template hides .header__right below 992px, which took
+                     the basket with it. This is the one control that comes back. -->
+                <button type="button" class="header__cart-mobile"
+                    :aria-label="`Basket, ${cartCount} item${cartCount === 1 ? '' : 's'}`"
+                    @click="openCart">
+                    <span class="icon_bag_alt" aria-hidden="true"></span>
+                    <span v-if="cartCount" class="tip" :class="{ 'is-bumped': bumped }">{{ cartCount }}</span>
+                </button>
 
                 <div class="canvas__open" role="button" tabindex="0" aria-label="Open menu"
                     @click="offcanvasOpen = true" @keyup.enter="offcanvasOpen = true">

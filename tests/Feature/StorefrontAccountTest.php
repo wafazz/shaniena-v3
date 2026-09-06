@@ -173,3 +173,20 @@ it('puts a replied-to ticket back in the queue', function () {
     expect($ticket->fresh()->status)->toBe(SupportTicket::STATUS_IN_PROGRESS)
         ->and($ticket->replies()->count())->toBe(1);
 });
+
+// --- what the phone menu needs -------------------------------------------
+
+it('tells the storefront nobody is signed in, so the menu offers a sign-in', function () {
+    shopCountry();
+
+    $this->get('/')->assertInertia(fn ($page) => $page->where('shop.customer', null));
+});
+
+it('names the signed-in customer for the menu', function () {
+    shopCountry();
+    $member = customer();
+
+    $this->actingAs($member, 'web')
+        ->get('/')
+        ->assertInertia(fn ($page) => $page->where('shop.customer.name', 'Aisyah'));
+});
