@@ -55,22 +55,22 @@ function submit() {
                 <form class="row g-3" @submit.prevent="submit">
                     <div class="col-md-6">
                         <CFormLabel for="f_name">First name</CFormLabel>
-                        <CFormInput id="f_name" v-model="form.f_name" :invalid="Boolean(form.errors.f_name)" />
+                        <CFormInput id="f_name" v-model="form.f_name" :invalid="Boolean(form.errors.f_name)" autocomplete="off" data-1p-ignore data-lpignore="true" />
                         <CFormFeedback v-if="form.errors.f_name" invalid>{{ form.errors.f_name }}</CFormFeedback>
                     </div>
                     <div class="col-md-6">
                         <CFormLabel for="l_name">Last name</CFormLabel>
-                        <CFormInput id="l_name" v-model="form.l_name" :invalid="Boolean(form.errors.l_name)" />
+                        <CFormInput id="l_name" v-model="form.l_name" :invalid="Boolean(form.errors.l_name)" autocomplete="off" data-1p-ignore data-lpignore="true" />
                         <CFormFeedback v-if="form.errors.l_name" invalid>{{ form.errors.l_name }}</CFormFeedback>
                     </div>
                     <div class="col-md-6">
                         <CFormLabel for="email">Email address</CFormLabel>
-                        <CFormInput id="email" v-model="form.email" type="email" :invalid="Boolean(form.errors.email)" />
+                        <CFormInput id="email" v-model="form.email" type="email" :invalid="Boolean(form.errors.email)" autocomplete="off" data-1p-ignore data-lpignore="true" />
                         <CFormFeedback v-if="form.errors.email" invalid>{{ form.errors.email }}</CFormFeedback>
                     </div>
                     <div class="col-md-6">
                         <CFormLabel for="phone">Phone</CFormLabel>
-                        <CFormInput id="phone" v-model="form.phone" type="tel" :invalid="Boolean(form.errors.phone)" />
+                        <CFormInput id="phone" v-model="form.phone" type="tel" :invalid="Boolean(form.errors.phone)" autocomplete="off" data-1p-ignore data-lpignore="true" />
                         <CFormFeedback v-if="form.errors.phone" invalid>{{ form.errors.phone }}</CFormFeedback>
                     </div>
                     <div class="col-md-6">
@@ -84,13 +84,13 @@ function submit() {
                     <div class="col-md-6"></div>
                     <div class="col-md-6">
                         <CFormLabel for="password">Password</CFormLabel>
-                        <CFormInput id="password" v-model="form.password" type="password" :invalid="Boolean(form.errors.password)" />
+                        <CFormInput id="password" v-model="form.password" type="password" autocomplete="new-password" data-1p-ignore data-lpignore="true" :invalid="Boolean(form.errors.password)" />
                         <div class="form-text">At least 8 characters, upper and lower case, and a symbol.</div>
                         <CFormFeedback v-if="form.errors.password" invalid>{{ form.errors.password }}</CFormFeedback>
                     </div>
                     <div class="col-md-6">
                         <CFormLabel for="password_confirmation">Confirm password</CFormLabel>
-                        <CFormInput id="password_confirmation" v-model="form.password_confirmation" type="password" />
+                        <CFormInput id="password_confirmation" v-model="form.password_confirmation" type="password" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
                     </div>
                     <div class="col-12">
                         <CButton type="submit" color="primary" :disabled="form.processing">

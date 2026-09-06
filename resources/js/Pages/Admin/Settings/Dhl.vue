@@ -36,31 +36,31 @@ const hint = (masked) => (masked ? `Set — ends ${masked.slice(-4)}. Leave blan
 
                     <div class="col-md-6">
                         <CFormLabel for="cid-test">Sandbox client ID</CFormLabel>
-                        <CFormInput id="cid-test" v-model="form.clientid_test" class="code" />
+                        <CFormInput id="cid-test" v-model="form.clientid_test" class="code" autocomplete="off" data-1p-ignore data-lpignore="true" />
                     </div>
                     <div class="col-md-6">
                         <CFormLabel for="cid">Production client ID</CFormLabel>
-                        <CFormInput id="cid" v-model="form.clientid" class="code" />
+                        <CFormInput id="cid" v-model="form.clientid" class="code" autocomplete="off" data-1p-ignore data-lpignore="true" />
                     </div>
 
                     <div class="col-md-6">
                         <CFormLabel for="pw-test">Sandbox password</CFormLabel>
-                        <CFormInput id="pw-test" v-model="form.password_test" type="password" autocomplete="off" />
+                        <CFormInput id="pw-test" v-model="form.password_test" type="password" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
                         <div class="form-text">{{ hint(props.settings.password_test) }}</div>
                     </div>
                     <div class="col-md-6">
                         <CFormLabel for="pw">Production password</CFormLabel>
-                        <CFormInput id="pw" v-model="form.password" type="password" autocomplete="off" />
+                        <CFormInput id="pw" v-model="form.password" type="password" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
                         <div class="form-text">{{ hint(props.settings.password) }}</div>
                     </div>
 
                     <div class="col-md-6">
                         <CFormLabel for="url-test">Sandbox endpoint</CFormLabel>
-                        <CFormInput id="url-test" v-model="form.url_test" class="code" :invalid="Boolean(form.errors.url_test)" />
+                        <CFormInput id="url-test" v-model="form.url_test" class="code" :invalid="Boolean(form.errors.url_test)" autocomplete="off" data-1p-ignore data-lpignore="true" />
                     </div>
                     <div class="col-md-6">
                         <CFormLabel for="url">Production endpoint</CFormLabel>
-                        <CFormInput id="url" v-model="form.url" class="code" :invalid="Boolean(form.errors.url)" />
+                        <CFormInput id="url" v-model="form.url" class="code" :invalid="Boolean(form.errors.url)" autocomplete="off" data-1p-ignore data-lpignore="true" />
                     </div>
 
                     <div class="col-12">
