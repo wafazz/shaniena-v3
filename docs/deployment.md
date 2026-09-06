@@ -80,6 +80,14 @@ Then run a normal deploy, and seed the reference tables once:
 deploy/deploy.sh origin/main
 cd /var/www/shaniena/current
 php artisan db:seed --class=ReferenceDataSeeder   # countries, states, 56,234 postcodes
+
+# The first admin. There is no super-admin bypass in the permission matrix, so
+# this also grants every page slug — an admin without grants signs in fine and
+# then 403s on every screen. The seeder refuses to run in production on its
+# default password, so give it a real one here and do not put it in .env:
+ADMIN_SEED_EMAIL=you@shaniena.com ADMIN_SEED_PASSWORD='<a real password>' \
+    php artisan db:seed --class=AdminUserSeeder
+
 php artisan shaniena:preflight
 ```
 
