@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\ListCountry;
+use App\Services\Storefront\Visitors;
 use App\Services\StoreSettings;
 use Closure;
 use Illuminate\Http\Request;
@@ -54,6 +55,13 @@ class HandleStorefrontRequests
         $request->attributes->set('storefront.country', $this->resolveCountry($request));
 
         $response = $next($request);
+
+        // Counted after the response, and only for ordinary page views: the
+        // table this fills had never been written to by anything, so the
+        // migrated visitor tiles have always read zero.
+        if (Visitors::shouldRecord($request) && $response->getStatusCode() < 400) {
+            app(Visitors::class)->record($request);
+        }
 
         if ($issued) {
             // setCookie(), not withCookie(): the latter is only on Laravel's

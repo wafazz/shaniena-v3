@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import InstallBanner from '../Storefront/InstallBanner.vue';
 import CartDrawer from '../Storefront/CartDrawer.vue';
+import VisitorCard from '../Storefront/VisitorCard.vue';
 import { useCart } from '../Storefront/useCart';
 
 /**
@@ -326,6 +327,8 @@ onBeforeUnmount(() => {
         </footer>
 
         <CartDrawer />
+
+        <VisitorCard />
 
         <InstallBanner />
     </div>

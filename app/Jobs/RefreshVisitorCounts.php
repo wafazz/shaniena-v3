@@ -2,39 +2,51 @@
 
 namespace App\Jobs;
 
-use App\Models\OnlineVisitor;
+use App\Services\Storefront\Visitors;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Cache;
 
 /**
- * Recomputes the visitor tiles the dashboard shows.
+ * Recomputes the visitor figures the dashboard and the storefront card show.
  *
  * The source wrote these to `live_visitors.json` inside the web root and
  * chmod'd it 0666 — world-readable traffic figures, world-writable file. They
  * live in the cache now, where nothing outside the app can reach them.
+ *
+ * The counting itself belongs to the Visitors service, which is also what
+ * records a visit; this is the minute hand.
  */
 class RefreshVisitorCounts implements ShouldQueue
 {
     use Queueable;
 
-    public const CACHE_KEY = 'dashboard:visitors';
-
     public int $tries = 1;
 
+    // Resolved rather than injected: the existing tests call handle() bare,
+    // and a job whose whole body is one service call gains nothing from a
+    // signature they would all have to pass through.
     public function handle(): void
     {
-        Cache::put(self::CACHE_KEY, [
-            'live' => OnlineVisitor::query()->live()->count(),
-            'all' => OnlineVisitor::query()->count(),
-            'today' => OnlineVisitor::query()->whereDate('created_at', today())->count(),
-            'updated_at' => now()->toIso8601String(),
-        ], now()->addMinutes(10));
+        app(Visitors::class)->refresh();
     }
 
-    /** @return array{live: int, all: int, today: int, updated_at: ?string} */
+    /**
+     * The figures, with the key names the admin dashboard has always used.
+     *
+     * `live`/`all` are aliases: both are now counts of distinct visitors
+     * rather than of rows, because two rows from one IP are one visitor who
+     * came back, and a tile that says otherwise is just wrong.
+     *
+     * @return array{live: int, all: int, today: int, week: int, month: int, overall: int, online: int, updated_at: ?string}
+     */
     public static function counts(): array
     {
-        return Cache::get(self::CACHE_KEY, ['live' => 0, 'all' => 0, 'today' => 0, 'updated_at' => null]);
+        $counts = app(Visitors::class)->counts();
+
+        return [
+            ...$counts,
+            'live' => $counts['online'],
+            'all' => $counts['overall'],
+        ];
     }
 }

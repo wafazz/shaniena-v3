@@ -1,0 +1,160 @@
+// ---------------------------------------------------------------------------
+// Floating visitor counter
+//
+// Bottom-left on purpose: the bottom-right corner already belongs to the PWA
+// install prompt and the basket drawer slides in over the right-hand edge.
+// Three fixed things fighting for one corner is how a shop ends up with a
+// checkout button nobody can press.
+//
+// It sits under both of those in the stack (z-index 900 against the drawer's
+// 999 and the prompt's 1040) and hides entirely while the drawer is open —
+// during checkout the shopper is doing something, and a traffic counter is not
+// part of it.
+// ---------------------------------------------------------------------------
+
+.visitor-card {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 900;
+  width: 232px;
+  background: $white-color;
+  border: 1px solid #e8e4e4;
+  box-shadow: 0 2px 4px rgba(17, 17, 17, .04), 0 18px 40px -28px rgba(17, 17, 17, .55);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.visitor-card.is-collapsed {
+  width: auto;
+}
+
+.visitor-card__toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: $heading-color;
+  transition: background var(--t-fast) linear;
+
+  &:hover { background: #faf8f7; }
+}
+
+// A green dot that breathes while somebody is on the site, and a grey one that
+// does not when nobody is. The state is the colour; the movement is secondary,
+// and the global reduced-motion switch turns it off.
+.visitor-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c9c4c4;
+  flex: none;
+}
+
+.visitor-card__dot.is-live {
+  background: #2f7a52;
+  box-shadow: 0 0 0 0 rgba(47, 122, 82, .5);
+  animation: visitor-pulse 2.4s ease-out infinite;
+}
+
+@keyframes visitor-pulse {
+  70% { box-shadow: 0 0 0 7px rgba(47, 122, 82, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(47, 122, 82, 0); }
+}
+
+.visitor-card__now {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex: 1;
+
+  b {
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  span {
+    font-size: 12px;
+    color: #8a8382;
+    white-space: nowrap;
+  }
+}
+
+.visitor-card__chevron {
+  color: #b3adad;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.visitor-card__body {
+  border-top: 1px solid #f0ecec;
+  padding: 4px 13px 11px;
+
+  dl { margin: 0; }
+}
+
+.visitor-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f5f2f2;
+
+  &:last-child { border-bottom: 0; }
+
+  dt {
+    font-weight: 400;
+    color: #8a8382;
+    font-size: 12px;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    // Five numbers stacked in a column have to line up on their digits.
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.visitor-card__note {
+  margin: 9px 0 0;
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #b3adad;
+}
+
+// A number that changed says so, briefly. Without this the panel is five
+// figures that occasionally differ from what you last looked at.
+@keyframes visitor-bump {
+  0% { color: inherit; transform: none; }
+  30% { color: $primary-color; transform: translateY(-2px); }
+  100% { color: inherit; transform: none; }
+}
+
+.visitor-card .is-bumped {
+  display: inline-block;
+  animation: visitor-bump 900ms var(--ease-out);
+}
+
+body.drawer-open .visitor-card {
+  display: none;
+}
+
+// On a phone it opens as a pill and stays out of the thumb's way; expanded, it
+// is capped so it can never grow into the page.
+@media (max-width: 575px) {
+  .visitor-card {
+    left: 12px;
+    bottom: 12px;
+    width: min(212px, calc(100vw - 24px));
+  }
+
+  .visitor-card__toggle { padding: 9px 11px; }
+}

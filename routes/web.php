@@ -43,6 +43,7 @@ use App\Http\Controllers\Shop\OrderTrackingController;
 use App\Http\Controllers\Shop\PaymentController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
 use App\Http\Controllers\Shop\SupportController;
+use App\Http\Controllers\Shop\VisitorCountController;
 use App\Services\OrderQueues;
 use Illuminate\Support\Facades\Route;
 
@@ -67,6 +68,12 @@ Route::get('categories/{category:slug}', [CatalogueController::class, 'category'
 Route::get('brands/{brand:slug}', [CatalogueController::class, 'brand'])->name('shop.brand');
 Route::get('promo-item', [CatalogueController::class, 'promos'])->name('shop.promos');
 Route::get('shop', [CatalogueController::class, 'search'])->name('shop.search');
+
+// Live visitor counts for the storefront card. Aggregates only, from cache,
+// throttled — it is polled by every open tab on the shop.
+Route::get('visitors', VisitorCountController::class)
+    ->middleware('throttle:visitor-counts')
+    ->name('shop.visitors');
 
 Route::get('cart', [CartController::class, 'show'])->name('shop.cart');
 // Read-only mirror of the cart page for the header drawer, scoped to the same

@@ -86,7 +86,7 @@ database/migrations/          80 migrations, from 59 source tables
 resources/js/
   Pages/Admin/                31 console screens
   Pages/Shop/                 19 storefront screens
-  Storefront/                 shop components — cart drawer, product card, hero, SEO
+  Storefront/                 shop components — cart drawer, visitor card, product card, hero, SEO
   Layouts/                    AdminLayout, StorefrontLayout, AuthLayout
 resources/sass/
   app.scss                    console (CoreUI)

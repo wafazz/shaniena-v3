@@ -104,6 +104,13 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(60)->by($request->ip()),
         ]);
 
+        // One open tab polls this every 20 seconds — 3 a minute. The ceiling
+        // is for the tab somebody left open in fifteen windows, not for a
+        // shopper.
+        RateLimiter::for('visitor-counts', fn (Request $request) => [
+            Limit::perMinute(60)->by($request->ip()),
+        ]);
+
         // Generous, because a gateway retrying a callback is normal and being
         // throttled would lose a real payment — but not unbounded.
         RateLimiter::for('gateway-callback', fn (Request $request) => [
