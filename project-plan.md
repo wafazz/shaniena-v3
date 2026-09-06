@@ -193,12 +193,14 @@
 
 ## Phase 9: Cutover
 
-- [ ] **9.1** Production `.env` + config caching
-- [ ] **9.2** Deployment runbook (queue worker, scheduler, SSR node process)
-- [ ] **9.3** Asset build pipeline
-- [ ] **9.4** Parallel run against live data; reconcile
-- [ ] **9.5** Cutover + rollback plan
-- [ ] **9.6** Handoff doc (Artifact, per 52-handoff-protocol)
+- [x] **9.1** Production `.env` + config caching — `.env.production.example`, annotated, with thirteen values marked CHANGE ME and every secret committed empty (a test asserts that). Production-only decisions are written down where they are made: `SESSION_SAME_SITE=lax` because gateways return the customer by a cross-site POST and `strict` would drop the session on the way back; `LOG_LEVEL=warning` because `debug` writes query bindings, which here means customer addresses on disk; three Redis databases so `cache:clear` cannot sign every customer out. All four caches (`config`, `route`, `view`, `event`) build clean, and a test keeps them buildable by failing on a closure in `config/` or an application route that is one.
+- [x] **9.2** Deployment runbook — `docs/deployment.md`, with the config it tells you to install sitting next to it in `deploy/`: nginx vhost, two supervisor programs (queue worker, SSR node process), the single cron entry that replaced the source's four standalone cron scripts. Deploys are release directories and an atomic symlink flip, not the source's FTP-over-the-live-directory: `deploy/deploy.sh` builds a release, migrates, caches, flips, reloads php-fpm, restarts both supervised programs, then runs preflight — **and rolls itself back if preflight fails**. `deploy/rollback.sh` is a symlink move, an fpm reload and a restart, and deliberately touches no data.
+- [x] **9.3** Asset build pipeline — `npm run build` produces the two independent client bundles and the SSR bundle; the split (the shop must not ship CoreUI, the console must not ship Ashion) already has a test. Hashed output is served `immutable` for a year, `public/sw.js` `no-cache` because it is not hashed and would otherwise pin customers to a stale worker across a deploy.
+- [ ] **9.4** *(blocked — needs the live DB, see Open Risk 1)* Parallel run against live data; reconcile
+- [x] **9.5** Cutover + rollback plan — `docs/cutover.md`. Twenty steps from a T-7 rehearsal to the T+1 reconciliation, each marked reversible or not: **step 14, repointing the gateway callback URLs and courier webhooks, is the point of no return**, and everything before it is a staging exercise with the old shop still able to serve. Three failures, three responses — a bad release (symlink move), a cutover aborted before step 14 (nothing lost but the window), and a cutover that failed after orders were taken (a data-loss decision that needs Fakrul, with the order-export procedure written out). It also states the one rule that keeps every rollback safe: a migration must be backward compatible with the release *currently* serving traffic, so drops ship one deploy after the code that stopped using the column.
+- [x] **9.6** Handoff doc — published as an Artifact: <https://claude.ai/code/artifact/aa2a1b8e-6089-4c12-9fac-c0bdc22cd25c>. Phase status, the five processes production now needs, the cutover's one irreversible step, the four open risks and the five things needed from Fakrul.
+
+**Also delivered in Phase 9:** `php artisan shaniena:preflight` — sixteen checks that answer "can this host serve the shop", exiting non-zero so it can gate a deploy or run from cron as a canary. Every check is a failure the source project actually had no way of noticing: a missing `APP_KEY`, a queue nobody is draining, an SSR process that died with the release before it, a `public/storage` link that was never made, reference tables that were never seeded, `MAIL_MAILER=log` in production quietly swallowing every order confirmation.
 
 ---
 
@@ -431,3 +433,12 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 2026-09-05 | Replayed callback confirms once | one order_details row, one confirmation ✓ |
 | 2026-09-05 | A channel switched on but unconfigured is not offered | ✓ |
 | 2026-09-05 | Pest suite after 6.1 + 6.2 | 241 passed, 1002 assertions ✓ |
+| 2026-09-06 | `config:cache`, `route:cache`, `view:cache`, `event:cache` | all four build clean; 0 closures under `config/`, 0 application routes that are one ✓ |
+| 2026-09-06 | `npm run build` (client + SSR) | 876 modules client, SSR bundle 244.9 kB from 35 modules — shop pages only, by design ✓ |
+| 2026-09-06 | SSR bundle run as supervisor would (`node bootstrap/ssr/ssr.js`) | `/health` 200 ✓ |
+| 2026-09-06 | `shaniena:preflight` against this host | 11 ok, 3 n/a on a local box (debug, framework caches, secure cookie), 2 correctly FAIL — SSR process down and `MAIL_FROM_ADDRESS` still `hello@example.com`; green once the SSR process was started ✓ |
+| 2026-09-06 | `deploy.sh` / `rollback.sh` | `bash -n` clean, executable, asserted by a test ✓ |
+| 2026-09-06 | Supervisor commands match the app | worker queue = the template's `QUEUE_CONNECTION`, SSR path = `config('inertia.ssr.bundle')` ✓ |
+| 2026-09-06 | Committed production template carries no secret | `APP_KEY`, both DB passwords, Redis, mail, NinjaVan and J&T keys all empty ✓ |
+| 2026-09-06 | `vendor/bin/pint --test` | passed ✓ |
+| 2026-09-06 | Pest suite after Phase 9 | 404 passed, 1925 assertions ✓ |

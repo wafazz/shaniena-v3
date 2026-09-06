@@ -1,0 +1,9 @@
+# Laravel scheduler — install for www-data with `crontab -u www-data -e`.
+#
+# One entry, not the source project's four separate cron scripts (each of which
+# opened its own database connection with the password written into the file).
+# What actually runs is declared in routes/console.php: baskets expire every
+# five minutes, visitor counts refresh every minute, delivery status syncs
+# hourly. Adding a job is a code change and a deploy, not a crontab edit.
+#
+* * * * * cd /var/www/shaniena/current && php artisan schedule:run >> /var/log/shaniena/schedule.log 2>&1
