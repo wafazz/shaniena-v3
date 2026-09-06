@@ -33,7 +33,15 @@ class Basket
         return Cart::query()
             ->where('session_id', $sessionId)
             ->whereIn('status', Cart::STATUS_ACTIVE)
-            ->with(['product:id,name,slug,weight', 'variant:id,variant_name,sku,max_purchase'])
+            // The images come along for the basket drawer's thumbnails. Eager
+            // loaded, so a ten-line basket is still one extra query rather
+            // than ten — Catalogue::imageUrl() falls back to a query per
+            // product when the relation is not loaded.
+            ->with([
+                'product:id,name,slug,weight',
+                'product.images:id,product_id,image',
+                'variant:id,variant_name,sku,max_purchase',
+            ])
             ->orderBy('id')
             ->get();
     }
@@ -59,6 +67,7 @@ class Basket
                 'variant_id' => $line->pv_id,
                 'name' => $line->product?->name ?? 'Product removed',
                 'slug' => $line->product?->slug,
+                'image' => $line->product ? $this->catalogue->imageUrl($line->product) : null,
                 'variant' => $line->variant?->variant_name,
                 'quantity' => (int) $line->quantity,
                 'unit_price' => round($unit, 2),

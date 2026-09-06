@@ -20,11 +20,21 @@ const pages = computed(() => {
     return out;
 });
 
+// Sorting or paging used to blank the grid and rebuild it from the top of the
+// page. It now dims in place, skeletons stand in for the cards, and the scroll
+// position is kept — so the shopper's place in a long category survives a sort.
+const busy = ref(false);
+
 function go(params) {
     router.get(window.location.pathname, {
         ...Object.fromEntries(new URLSearchParams(window.location.search)),
         ...params,
-    }, { preserveState: true, preserveScroll: true });
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        onStart: () => { busy.value = true; },
+        onFinish: () => { busy.value = false; },
+    });
 }
 
 const emptyCopy = computed(() => {
@@ -59,10 +69,12 @@ const emptyCopy = computed(() => {
                     <div class="col-md-5">
                         <form v-if="meta.kind === 'search'" class="d-flex gap-2" @submit.prevent="go({ q: term })">
                             <input v-model="term" type="search" class="form-control" placeholder="Search products">
-                            <button type="submit" class="site-btn">Search</button>
+                            <button type="submit" class="site-btn" :disabled="busy">
+                                {{ busy ? 'Searching…' : 'Search' }}
+                            </button>
                         </form>
                         <select v-else v-model="sort" class="form-select" aria-label="Sort products"
-                            @change="go({ sort })">
+                            :disabled="busy" @change="go({ sort })">
                             <option value="newest">Newest first</option>
                             <option value="price-asc">Price: low to high</option>
                             <option value="price-desc">Price: high to low</option>
@@ -71,9 +83,23 @@ const emptyCopy = computed(() => {
                     </div>
                 </div>
 
-                <div v-if="products.length" class="row">
+                <div v-if="products.length" class="row" :class="{ 'grid--busy': busy }"
+                    :aria-busy="busy">
                     <div v-for="product in products" :key="product.id" class="col-lg-3 col-md-4 col-sm-6">
                         <ProductCard :product="product" />
+                    </div>
+                </div>
+
+                <!-- An empty grid mid-request is a loading state, not an empty
+                     category: show the shape of what is coming instead of
+                     telling the shopper there is nothing here. -->
+                <div v-else-if="busy" class="row">
+                    <div v-for="n in 4" :key="n" class="col-lg-3 col-md-4 col-sm-6">
+                        <div class="product__item">
+                            <div class="skeleton skeleton--pic"></div>
+                            <div class="skeleton skeleton--line"></div>
+                            <div class="skeleton skeleton--price"></div>
+                        </div>
                     </div>
                 </div>
 

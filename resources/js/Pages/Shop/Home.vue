@@ -28,7 +28,7 @@ defineProps({
     <StorefrontLayout current="home">
         <HeroSlider :slides="slides" />
 
-        <section class="categories spad">
+        <section v-reveal class="categories spad">
             <div class="container">
                 <div class="row">
                     <!-- Ashion drove this with Owl Carousel; a responsive grid
@@ -58,7 +58,7 @@ defineProps({
         <ProductRow title="Top 8 Best Seller" :products="bestSellers" empty="No best-selling products found." />
         <ProductRow title="Promo" :products="promos" empty="No promo items found." />
 
-        <section class="services spad">
+        <section v-reveal class="services spad">
             <div class="container">
                 <div class="row">
                     <div v-for="service in SERVICES" :key="service.title" class="col-lg-3 col-md-6 col-sm-6">

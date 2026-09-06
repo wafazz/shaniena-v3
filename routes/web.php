@@ -69,6 +69,12 @@ Route::get('promo-item', [CatalogueController::class, 'promos'])->name('shop.pro
 Route::get('shop', [CatalogueController::class, 'search'])->name('shop.search');
 
 Route::get('cart', [CartController::class, 'show'])->name('shop.cart');
+// Read-only mirror of the cart page for the header drawer, scoped to the same
+// cart cookie. Throttled: it is the one storefront endpoint a script could sit
+// in a loop against without a form or a token.
+Route::get('cart/summary', [CartController::class, 'summary'])
+    ->middleware('throttle:cart-summary')
+    ->name('shop.cart.summary');
 Route::post('cart', [CartController::class, 'store'])->name('shop.cart.store');
 Route::put('cart/{line}', [CartController::class, 'update'])->name('shop.cart.update');
 Route::delete('cart/{line}', [CartController::class, 'destroy'])->name('shop.cart.destroy');

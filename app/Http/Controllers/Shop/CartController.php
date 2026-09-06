@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Catalogue;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,23 @@ class CartController extends Controller
                 $request->attributes->get('storefront.country'),
             ),
         ]);
+    }
+
+    /**
+     * The basket as JSON, for the header drawer.
+     *
+     * The drawer can be opened from any page, and Inertia's shared props are
+     * only the count — sending every line on every page load would put the
+     * whole basket in the HTML of pages that never show it. Scoped to the cart
+     * cookie exactly like the page it mirrors, so it can only ever return the
+     * caller's own basket.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        return response()->json($this->basket->summary(
+            HandleStorefrontRequests::cartToken($request),
+            $request->attributes->get('storefront.country'),
+        ));
     }
 
     public function store(Request $request): RedirectResponse

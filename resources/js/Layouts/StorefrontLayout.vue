@@ -1,7 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import InstallBanner from '../Storefront/InstallBanner.vue';
+import CartDrawer from '../Storefront/CartDrawer.vue';
+import { useCart } from '../Storefront/useCart';
 
 /**
  * Ashion's header and footer, ported to Vue.
@@ -26,6 +28,9 @@ const cartCount = computed(() => shop.value.cartCount ?? 0);
 const offcanvasOpen = ref(false);
 const searchOpen = ref(false);
 const search = ref('');
+const searchField = ref(null);
+
+const { open: openCart } = useCart();
 
 function submitSearch() {
     if (!search.value.trim()) {
@@ -35,6 +40,87 @@ function submitSearch() {
     searchOpen.value = false;
     router.get('/shop', { q: search.value.trim() });
 }
+
+// Opening the search panel should put the cursor in it. The template's own
+// version relied on the shopper clicking the field they had just summoned.
+watch(searchOpen, (open) => {
+    if (open) {
+        requestAnimationFrame(() => searchField.value?.focus());
+    }
+});
+
+/*
+ * Sticky header.
+ *
+ * It detaches once the page has scrolled past it, leaves on the way down and
+ * comes back on the way up — so the basket and search are one gesture away
+ * anywhere on a long category page, without holding a band of a phone screen
+ * while somebody is reading a description.
+ */
+const header = ref(null);
+const stuck = ref(false);
+const hidden = ref(false);
+let lastY = 0;
+let ticking = false;
+
+function onScroll() {
+    if (ticking) {
+        return;
+    }
+
+    ticking = true;
+
+    requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const height = header.value?.offsetHeight ?? 0;
+
+        // Past its own height, so the header never sticks while still in view.
+        const shouldStick = y > height;
+
+        if (shouldStick !== stuck.value) {
+            stuck.value = shouldStick;
+            document.body.classList.toggle('has-stuck-header', shouldStick);
+            // Measured, not guessed: the spacer that replaces the header in
+            // the flow is exactly as tall as the header was.
+            document.documentElement.style.setProperty('--header-h', `${height}px`);
+        }
+
+        // A few pixels of slack, or the header flickers on a trackpad.
+        if (shouldStick && Math.abs(y - lastY) > 6) {
+            hidden.value = y > lastY;
+        }
+
+        lastY = y;
+        ticking = false;
+    });
+}
+
+const bumped = ref(false);
+let bumpTimer = null;
+
+// The badge is the only feedback a shopper gets on pages where the drawer is
+// already closed again, so it earns a beat of movement when it changes.
+watch(cartCount, (now, before) => {
+    if (now === before) {
+        return;
+    }
+
+    bumped.value = false;
+    requestAnimationFrame(() => { bumped.value = true; });
+    clearTimeout(bumpTimer);
+    bumpTimer = setTimeout(() => { bumped.value = false; }, 500);
+});
+
+onMounted(() => {
+    lastY = window.scrollY;
+    window.addEventListener('scroll', onScroll, { passive: true });
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('scroll', onScroll);
+    clearTimeout(bumpTimer);
+    document.body.classList.remove('has-stuck-header');
+});
 </script>
 
 <template>
@@ -46,7 +132,11 @@ function submitSearch() {
                 @click="offcanvasOpen = false" @keyup.enter="offcanvasOpen = false">+</div>
 
             <ul class="offcanvas__widget">
-                <li><span class="icon_bag_alt"></span> <Link href="/checkout">{{ cartCount }} items</Link></li>
+                <li>
+                    <span class="icon_bag_alt"></span>
+                    <button type="button" class="cart-trigger"
+                        @click="offcanvasOpen = false; openCart()">{{ cartCount }} items</button>
+                </li>
             </ul>
 
             <div class="offcanvas__auth">
@@ -72,7 +162,7 @@ function submitSearch() {
             </nav>
         </div>
 
-        <header class="header">
+        <header ref="header" class="header" :class="{ 'is-stuck': stuck, 'is-hidden': stuck && hidden }">
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-xl-3 col-lg-2">
@@ -132,10 +222,15 @@ function submitSearch() {
                                         @keyup.enter="searchOpen = !searchOpen"></span>
                                 </li>
                                 <li>
-                                    <Link href="/checkout" aria-label="Cart">
+                                    <!-- The basket opens beside the page now
+                                         rather than replacing it with the
+                                         checkout. -->
+                                    <button type="button" class="cart-trigger"
+                                        :aria-label="`Basket, ${cartCount} item${cartCount === 1 ? '' : 's'}`"
+                                        @click="openCart">
                                         <span class="icon_bag_alt"></span>
-                                        <div class="tip">{{ cartCount }}</div>
-                                    </Link>
+                                        <div class="tip" :class="{ 'is-bumped': bumped }">{{ cartCount }}</div>
+                                    </button>
                                 </li>
                             </ul>
                         </div>
@@ -149,17 +244,26 @@ function submitSearch() {
             </div>
         </header>
 
+        <!-- Holds the header's place in the flow while it is fixed, so the
+             page does not jump by 84px the moment it sticks. -->
+        <div class="header-spacer"></div>
+
         <div class="search-model" :style="{ display: searchOpen ? 'flex' : 'none' }">
             <div class="h-100 d-flex align-items-center justify-content-center">
                 <div class="search-close-switch" role="button" tabindex="0" aria-label="Close search"
                     @click="searchOpen = false" @keyup.enter="searchOpen = false">+</div>
                 <form class="search-model-form" @submit.prevent="submitSearch">
-                    <input v-model="search" type="text" placeholder="Search here.....">
+                    <input ref="searchField" v-model="search" type="text" placeholder="Search here....."
+                        aria-label="Search products">
                 </form>
             </div>
         </div>
 
-        <slot />
+        <!-- Each Inertia visit remounts this, so the fade is per page and
+             costs no JavaScript. -->
+        <div class="storefront-page">
+            <slot />
+        </div>
 
         <footer class="footer">
             <div class="container">
@@ -220,6 +324,8 @@ function submitSearch() {
                 </div>
             </div>
         </footer>
+
+        <CartDrawer />
 
         <InstallBanner />
     </div>

@@ -1,0 +1,504 @@
+// ---------------------------------------------------------------------------
+// Motion and interaction
+//
+// Ashion is a static template: 4,900 lines of layout with 29 transitions in
+// it, nearly all of them on the product card's hover rail. Everything a
+// shopper does — adding to the basket, changing a quantity, sorting a grid —
+// happened as a full page load with no feedback in between.
+//
+// This file holds the timing vocabulary and every piece of state the template
+// has no opinion about: the sticky header, the basket drawer, the quantity
+// stepper, loading skeletons and scroll reveals. Ashion's own classes are
+// never redefined here, only extended, so the template can still be updated.
+//
+// Every duration goes through a token. Nothing animates for its own sake: each
+// movement either shows where something went (the drawer, the badge) or
+// covers a wait (the skeletons, the grid fade).
+// ---------------------------------------------------------------------------
+
+:root {
+  // Decelerating: fast to start, settles. The default for anything entering.
+  --ease-out: cubic-bezier(0.22, 0.7, 0.3, 1);
+  // A little overshoot, used only where something should feel physical — the
+  // basket badge and the drawer.
+  --ease-spring: cubic-bezier(0.34, 1.32, 0.5, 1);
+
+  --t-fast: 140ms;
+  --t-base: 240ms;
+  --t-slow: 420ms;
+
+  // Measured from the real header by the layout, so the sticky spacer is
+  // never a guessed number.
+  --header-h: 84px;
+}
+
+// One switch for the whole shop. A customer who has asked their operating
+// system for less movement gets state changes without travel — not a broken
+// page, and not a page that ignores them.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// Keyboard users get the same affordances as the mouse. Ashion shipped no
+// focus style at all, so tabbing through the shop was invisible.
+:focus-visible {
+  outline: 2px solid $primary-color;
+  outline-offset: 2px;
+}
+
+// ---------------------------------------------------------------------------
+// Page entry
+// ---------------------------------------------------------------------------
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.storefront-page {
+  animation: page-in var(--t-slow) var(--ease-out) both;
+}
+
+// ---------------------------------------------------------------------------
+// Sticky header
+//
+// It leaves on the way down and comes back on the way up, so the basket and
+// search are one gesture away from anywhere on a long category page without
+// costing a band of screen while reading.
+// ---------------------------------------------------------------------------
+
+.header.is-stuck {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99;
+  background: $white-color;
+  box-shadow: 0 1px 0 rgba(17, 17, 17, 0.08), 0 8px 24px -18px rgba(17, 17, 17, 0.4);
+  transition: transform var(--t-base) var(--ease-out);
+
+  .header__logo,
+  .header__menu,
+  .header__right {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    transition: padding var(--t-base) var(--ease-out);
+  }
+}
+
+.header.is-stuck.is-hidden {
+  transform: translateY(-100%);
+}
+
+// The header leaves the flow when it sticks; without this the page jumps by
+// its own height at the moment it does.
+body.has-stuck-header .header-spacer {
+  height: var(--header-h);
+}
+
+// ---------------------------------------------------------------------------
+// Basket badge
+// ---------------------------------------------------------------------------
+
+@keyframes badge-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+
+.header__right__widget .tip {
+  transition: background var(--t-fast) linear;
+}
+
+.header__right__widget .tip.is-bumped {
+  animation: badge-pop var(--t-slow) var(--ease-spring);
+}
+
+// The cart icon is a button now (it opens the drawer), so it has to shed the
+// button chrome the browser gives it.
+.cart-trigger {
+  background: none;
+  border: 0;
+  padding: 0;
+  position: relative;
+  color: inherit;
+}
+
+// ---------------------------------------------------------------------------
+// Product cards
+//
+// The template already raises its action rail on hover; what it never did was
+// respond to the photo itself, or offer any action but "look at this".
+// ---------------------------------------------------------------------------
+
+.product__item__pic {
+  // The background moved to an inner layer so it can scale inside the frame
+  // instead of pushing the card's neighbours around.
+  .product__item__pic__img {
+    position: absolute;
+    inset: 0;
+    background-position: center;
+    background-size: cover;
+    transition: transform var(--t-slow) var(--ease-out);
+  }
+}
+
+.product__item {
+  transition: transform var(--t-base) var(--ease-out);
+
+  &:hover,
+  &:focus-within {
+    .product__item__pic__img {
+      transform: scale(1.06);
+    }
+
+    .product__hover li {
+      opacity: 1;
+      top: 0;
+    }
+  }
+}
+
+// A card whose photo is missing has nothing to zoom, and a card whose product
+// is gone should not invite a hover at all.
+.product__item__pic.is-empty .product__item__pic__img,
+.product__item.is-sold-out .product__item__pic__img {
+  transform: none !important;
+}
+
+.product__hover li button {
+  font-size: 18px;
+  color: $heading-color;
+  display: block;
+  height: 45px;
+  width: 45px;
+  background: $white-color;
+  border: 0;
+  line-height: 48px;
+  text-align: center;
+  border-radius: 50%;
+  padding: 0;
+  transition: all 0.5s;
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    background: $primary-color;
+    color: $white-color;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &.is-done {
+    background: #2f7a52;
+    color: $white-color;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Quantity stepper
+//
+// A bare number input asks for a keyboard on a phone and hides its own limits.
+// The stepper shows the ceiling by disabling the button that would break it —
+// the cap is per-variant (`max_purchase`), and is enforced server-side too.
+// ---------------------------------------------------------------------------
+
+.qty-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid #e5e5e5;
+  background: $white-color;
+
+  button {
+    width: 38px;
+    border: 0;
+    background: none;
+    font-size: 18px;
+    line-height: 1;
+    color: $heading-color;
+    transition: background var(--t-fast) linear, color var(--t-fast) linear;
+
+    &:hover:not(:disabled) { background: #f4f2ef; }
+    &:active:not(:disabled) { background: #ebe7e2; }
+    &:disabled { opacity: 0.35; cursor: not-allowed; }
+  }
+
+  input {
+    width: 52px;
+    border: 0;
+    border-left: 1px solid #e5e5e5;
+    border-right: 1px solid #e5e5e5;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    padding: 8px 0;
+    -moz-appearance: textfield;
+    appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Basket drawer
+//
+// Adding something used to change one number in the corner of the header, on
+// a page that had not visibly moved. The drawer is the receipt: it shows what
+// went in, what the basket now holds, and the way to checkout.
+// ---------------------------------------------------------------------------
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 17, 17, 0.45);
+  z-index: 998;
+  opacity: 0;
+  transition: opacity var(--t-base) linear;
+
+  &.is-open { opacity: 1; }
+}
+
+.cart-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 100vw);
+  background: $white-color;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform var(--t-base) var(--ease-out);
+  box-shadow: -12px 0 40px -24px rgba(17, 17, 17, 0.6);
+
+  &.is-open {
+    transform: none;
+    transition-timing-function: var(--ease-spring);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 24px;
+    border-bottom: 1px solid #ededed;
+
+    h6 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    button {
+      border: 0;
+      background: none;
+      font-size: 22px;
+      line-height: 1;
+      color: $heading-color;
+      transition: transform var(--t-fast) var(--ease-out);
+
+      &:hover { transform: rotate(90deg); color: $primary-color; }
+    }
+  }
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 24px;
+  }
+
+  &__foot {
+    border-top: 1px solid #ededed;
+    padding: 20px 24px 24px;
+  }
+
+  &__line {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    gap: 14px;
+    align-items: start;
+    padding: 18px 0;
+    border-bottom: 1px solid #f3f3f3;
+
+    &:last-child { border-bottom: 0; }
+
+    &.is-leaving {
+      opacity: 0;
+      transform: translateX(24px);
+      transition: opacity var(--t-base) linear, transform var(--t-base) var(--ease-out);
+    }
+  }
+
+  &__thumb {
+    width: 64px;
+    height: 64px;
+    background: #f4f2ef center / cover no-repeat;
+  }
+
+  &__name {
+    font-size: 14px;
+    color: $heading-color;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  &__variant {
+    font-size: 12px;
+    color: #9a9a9a;
+    margin: 0 0 8px;
+  }
+
+  &__money {
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  &__remove {
+    border: 0;
+    background: none;
+    font-size: 12px;
+    color: #9a9a9a;
+    padding: 0;
+    text-decoration: underline;
+    transition: color var(--t-fast) linear;
+
+    &:hover { color: $primary-color; }
+  }
+
+  &__total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+    font-size: 15px;
+
+    b { font-variant-numeric: tabular-nums; font-size: 18px; }
+  }
+
+  &__note {
+    font-size: 12px;
+    color: #9a9a9a;
+    margin-bottom: 16px;
+  }
+
+  &__empty {
+    text-align: center;
+    padding: 56px 0;
+    color: #9a9a9a;
+  }
+}
+
+// A drawer that scrolls the page behind it feels broken on a phone.
+body.drawer-open {
+  overflow: hidden;
+}
+
+// The install prompt is fixed at z-index 1040 and, at 390px, sat exactly over
+// the drawer's Checkout button — the drawer's whole point, unreachable. Two
+// overlays at once is the bug; the prompt waits its turn.
+body.drawer-open .install-banner {
+  display: none;
+}
+
+// ---------------------------------------------------------------------------
+// Loading
+//
+// Sorting a grid used to blank the page and rebuild it. The grid now dims in
+// place and skeletons stand in for the cards, so the layout never jumps.
+// ---------------------------------------------------------------------------
+
+@keyframes shimmer {
+  from { background-position: -320px 0; }
+  to { background-position: 320px 0; }
+}
+
+.skeleton {
+  background: #efecea linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.65) 50%, rgba(255, 255, 255, 0) 100%) no-repeat;
+  background-size: 320px 100%;
+  animation: shimmer 1.1s linear infinite;
+
+  &--pic { height: 360px; }
+  &--line { height: 12px; margin: 14px auto 0; width: 65%; }
+  &--price { height: 12px; margin: 10px auto 0; width: 35%; }
+}
+
+.grid--busy {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity var(--t-fast) linear;
+}
+
+// ---------------------------------------------------------------------------
+// Scroll reveal
+//
+// The class is added by the directive, never by the markup: with JavaScript
+// off, or before it runs, every section is simply visible. A reveal that hides
+// content when the script fails is a broken page, not a subtle one.
+// ---------------------------------------------------------------------------
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+// ---------------------------------------------------------------------------
+// Buttons and links
+// ---------------------------------------------------------------------------
+
+.site-btn {
+  transition: background var(--t-fast) linear, transform var(--t-fast) var(--ease-out), opacity var(--t-fast) linear;
+
+  &:hover:not(:disabled) { transform: translateY(-1px); }
+  &:active:not(:disabled) { transform: translateY(0); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// The gallery on a product page: the picture changes, so say so with a
+// crossfade rather than swapping pixels between two frames.
+.product__details__pic__item img {
+  transition: opacity var(--t-base) linear;
+}
+
+.product__details__pic__item.is-swapping img {
+  opacity: 0;
+}
+
+.product__thumb-btn {
+  transition: border-color var(--t-fast) linear, transform var(--t-fast) var(--ease-out);
+
+  &:hover { transform: translateY(-2px); }
+}
+
+// Feedback under the add-to-basket button, which used to be plain red or
+// green text appearing with no transition at all.
+@keyframes notice-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.add-notice {
+  animation: notice-in var(--t-base) var(--ease-out) both;
+}

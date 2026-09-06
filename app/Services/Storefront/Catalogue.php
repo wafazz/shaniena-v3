@@ -89,7 +89,8 @@ class Catalogue
 
         return $products->map(function (Product $product) use ($prices, $stock, $country) {
             $price = $prices->get($product->id);
-            $inStock = $product->variants->contains(fn ($v) => ($stock[$v->id] ?? 0) > 0);
+            $sellable = $product->variants->filter(fn ($v) => ($stock[$v->id] ?? 0) > 0)->values();
+            $inStock = $sellable->isNotEmpty();
 
             return [
                 'id' => $product->id,
@@ -102,6 +103,12 @@ class Catalogue
                     ? number_format((float) $price->market_price, 2)
                     : null,
                 'in_stock' => $inStock,
+                // Only set where the choice is not the customer's to make: one
+                // sellable variant means the card can add straight to the
+                // basket. A product with a size or a shade still goes to its
+                // own page, because picking one for them is how the wrong item
+                // ends up in an order.
+                'default_variant_id' => $sellable->count() === 1 ? (int) $sellable->first()->id : null,
             ];
         })->values()->all();
     }

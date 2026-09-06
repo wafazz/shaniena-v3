@@ -4,6 +4,7 @@ import './bootstrap';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import { reveal } from './Storefront/reveal';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Shaniena';
 
@@ -17,7 +18,10 @@ createInertiaApp({
             import.meta.glob('./Pages/Shop/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) }).use(plugin).mount(el);
+        createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .directive('reveal', reveal)
+            .mount(el);
     },
     progress: {
         color: '#ca1515',

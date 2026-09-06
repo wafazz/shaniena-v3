@@ -2,6 +2,7 @@ import { createSSRApp, h } from 'vue';
 import { renderToString } from '@vue/server-renderer';
 import { createInertiaApp } from '@inertiajs/vue3';
 import createServer from '@inertiajs/vue3/server';
+import { reveal } from './Storefront/reveal';
 
 const appName = process.env.VITE_APP_NAME || 'Shaniena';
 
@@ -23,7 +24,11 @@ createServer((page) =>
             return pages[`./Pages/${name}.vue`];
         },
         setup({ App, props, plugin }) {
-            return createSSRApp({ render: () => h(App, props) }).use(plugin);
+            // The directive does nothing server-side (it has no SSR hook), but
+            // it has to be registered or every `v-reveal` warns on render.
+            return createSSRApp({ render: () => h(App, props) })
+                .use(plugin)
+                .directive('reveal', reveal);
         },
     }),
 );

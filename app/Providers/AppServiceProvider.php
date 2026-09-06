@@ -97,6 +97,13 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinutes(10, 5)->by($request->ip()),
         ]);
 
+        // The basket drawer reads this whenever it opens, and a shopper may
+        // open it repeatedly — so it is generous, but it is the one storefront
+        // endpoint that returns data without a form or a token behind it.
+        RateLimiter::for('cart-summary', fn (Request $request) => [
+            Limit::perMinute(60)->by($request->ip()),
+        ]);
+
         // Generous, because a gateway retrying a callback is normal and being
         // throttled would lose a real payment — but not unbounded.
         RateLimiter::for('gateway-callback', fn (Request $request) => [

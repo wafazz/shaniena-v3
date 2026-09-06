@@ -1,9 +1,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import Seo from '../../Storefront/Seo.vue';
 import StorefrontLayout from '../../Layouts/StorefrontLayout.vue';
 import ProductCard from '../../Storefront/ProductCard.vue';
+import QuantityStepper from '../../Storefront/QuantityStepper.vue';
+import { useCart } from '../../Storefront/useCart';
 
 const props = defineProps({
     product: { type: Object, required: true },
@@ -11,8 +13,6 @@ const props = defineProps({
     defaultVariantId: { type: Number, default: null },
     related: { type: Array, default: () => [] },
 });
-
-const page = usePage();
 
 // Opens on the first in-stock variant, falling back to the first one when
 // none are — the source's behaviour, decided server-side.
@@ -28,27 +28,41 @@ watch(selected, () => { qty.value = 1; });
 const activeImage = ref(0);
 const images = computed(() => (props.product.images.length ? props.product.images : [null]));
 
-const adding = ref(false);
-const message = ref(null);
+// Held for the length of the fade so the picture changes rather than
+// substituting one set of pixels for another mid-blink.
+const swapping = ref(false);
 
+function showImage(index) {
+    if (index === activeImage.value) {
+        return;
+    }
+
+    swapping.value = true;
+    setTimeout(() => {
+        activeImage.value = index;
+        swapping.value = false;
+    }, 130);
+}
+
+const { cart, add } = useCart();
+
+const adding = computed(() => cart.adding === selectedId.value);
+const added = computed(() => cart.justAdded === selectedId.value);
+const error = ref(null);
+
+// The error is the only thing left to say on the page: what went *right* is
+// said by the basket sliding open with the item in it.
 function addToCart() {
     if (!inStock.value || adding.value) {
         return;
     }
 
-    adding.value = true;
-    message.value = null;
+    error.value = null;
 
-    router.post('/cart', {
-        product_id: props.product.id,
-        variant_id: selectedId.value,
-        quantity: qty.value,
-    }, {
-        preserveScroll: true,
-        onSuccess: () => { message.value = { ok: true, text: `${props.product.name} added to your cart.` }; },
-        onError: (errors) => { message.value = { ok: false, text: Object.values(errors)[0] }; },
-        onFinish: () => { adding.value = false; },
-    });
+    add(
+        { productId: props.product.id, variantId: selectedId.value, quantity: qty.value },
+        { onError: (message) => { error.value = message; } },
+    );
 }
 </script>
 
@@ -78,14 +92,14 @@ function addToCart() {
                 <div class="row">
                     <div class="col-lg-6">
                         <div class="product__details__pic">
-                            <div class="product__details__pic__item">
+                            <div class="product__details__pic__item" :class="{ 'is-swapping': swapping }">
                                 <img v-if="images[activeImage]" :src="images[activeImage]" :alt="product.name">
                                 <div v-else class="product__details__placeholder">No photo yet</div>
                             </div>
                             <div v-if="product.images.length > 1" class="d-flex gap-2 mt-3 flex-wrap">
                                 <button v-for="(image, index) in product.images" :key="index" type="button"
                                     class="product__thumb-btn" :class="{ active: index === activeImage }"
-                                    :aria-label="`View image ${index + 1}`" @click="activeImage = index">
+                                    :aria-label="`View image ${index + 1}`" @click="showImage(index)">
                                     <img :src="image" :alt="`${product.name} image ${index + 1}`">
                                 </button>
                             </div>
@@ -120,14 +134,15 @@ function addToCart() {
                                 </select>
                             </div>
 
-                            <div v-if="inStock" class="mb-3 d-flex align-items-end gap-3">
+                            <div v-if="inStock" class="mb-3 d-flex align-items-end gap-3 flex-wrap">
                                 <div>
-                                    <label for="qty" class="d-block mb-1">Quantity</label>
-                                    <input id="qty" v-model.number="qty" type="number" min="1" :max="maxQty"
-                                        class="form-control" style="width: 7rem">
+                                    <span class="d-block mb-1">Quantity</span>
+                                    <QuantityStepper v-model="qty" :max="maxQty" :disabled="adding" />
                                 </div>
                                 <button type="button" class="site-btn" :disabled="adding" @click="addToCart">
-                                    {{ adding ? 'Adding…' : 'Add to cart' }}
+                                    <template v-if="adding">Adding…</template>
+                                    <template v-else-if="added">Added ✓</template>
+                                    <template v-else>Add to cart</template>
                                 </button>
                             </div>
 
@@ -135,11 +150,15 @@ function addToCart() {
                                 Limit {{ maxQty }} per order.
                             </p>
 
-                            <p v-if="message" :class="message.ok ? 'text-success' : 'text-danger'">{{ message.text }}</p>
+                            <p v-if="error" class="text-danger add-notice">{{ error }}</p>
 
                             <ul class="mt-4">
+                                <!-- The whitespace between <b> and the value is
+                                     collapsed away when the value sits on its own
+                                     line behind a v-if, so it read
+                                     "AvailabilityIn stock (270)". -->
                                 <li>
-                                    <b>Availability</b>
+                                    <b>Availability</b>{{ ' ' }}
                                     <span v-if="inStock">In stock ({{ selected.stock }})</span>
                                     <span v-else class="text-danger">Out of stock</span>
                                 </li>
