@@ -68,6 +68,38 @@ it('grants every slug the console gates on, so no screen 403s', function () {
     expect($denied)->toBe([]);
 });
 
+it('grants the button slugs too, or a page opens with its controls greyed out', function () {
+    $admin = seedAdmin();
+    $access = app(PageAccess::class);
+
+    // Scanned, not listed: these live in no route and no menu, which is
+    // exactly why the first version of this seeder missed them and Add /
+    // Deduct Stock arrived disabled on a fresh install.
+    $slugs = [];
+
+    foreach (sourcesIn(app_path(), 'php') as $file) {
+        preg_match_all("/'perform',\s*'([a-z0-9\-\/]+)'/", (string) file_get_contents($file), $matches);
+        $slugs = array_merge($slugs, $matches[1]);
+    }
+
+    $slugs = array_values(array_unique($slugs));
+    $denied = array_values(array_filter($slugs, fn ($slug) => ! $access->allows($admin, $slug)));
+
+    expect($slugs)->not->toBeEmpty()
+        ->and($denied)->toBe([]);
+});
+
+it('leaves the stock screen’s Add / Deduct button enabled for the seeded admin', function () {
+    $admin = seedAdmin();
+
+    // The screen sends the gate's answer to the browser as a prop, and the
+    // button is disabled on it.
+    $this->actingAs($admin, 'admin')
+        ->get('/admin/stock-control')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('can.adjustStock', true));
+});
+
 it('can be run again without duplicating a row or an id', function () {
     seedAdmin();
     $rowsAfterFirst = RoleAccess::count();

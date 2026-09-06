@@ -6,9 +6,12 @@ use App\Models\MemberHq;
 use App\Models\RoleAccess;
 use App\Services\AdminNavigation;
 use App\Services\PageAccess;
+use FilesystemIterator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use RuntimeException;
 
 /**
@@ -117,7 +120,12 @@ class AdminUserSeeder extends Seeder
 
     /**
      * Every slug the console gates on: the `page:` middleware on the admin
-     * routes, plus anything the sidebar links to.
+     * routes, anything the sidebar links to, and the button slugs checked
+     * through the `perform` gate.
+     *
+     * The button slugs are the ones that are easy to forget — they are in no
+     * route and no menu, so an admin can hold every page and still find Add /
+     * Deduct Stock greyed out, which is exactly what happened.
      *
      * @return list<string>
      */
@@ -138,6 +146,38 @@ class AdminUserSeeder extends Seeder
             })
             ->filter();
 
-        return $fromRoutes->merge($fromNav)->unique()->sort()->values()->all();
+        return $fromRoutes->merge($fromNav)->merge($this->buttonSlugs())->unique()->sort()->values()->all();
+    }
+
+    /**
+     * Button slugs, read out of the source rather than listed by hand: a
+     * `$user->can('perform', 'button-…')` added next month is granted by
+     * re-running this instead of quietly disabling a control.
+     *
+     * @return list<string>
+     */
+    private function buttonSlugs(): array
+    {
+        $slugs = [];
+
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(app_path(), FilesystemIterator::SKIP_DOTS),
+        );
+
+        foreach ($files as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            preg_match_all(
+                "/'perform',\s*'([a-z0-9\-\/]+)'/",
+                (string) file_get_contents($file->getPathname()),
+                $matches,
+            );
+
+            $slugs = array_merge($slugs, $matches[1]);
+        }
+
+        return array_values(array_unique($slugs));
     }
 }
