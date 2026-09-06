@@ -30,8 +30,6 @@ const stripe = useForm({
 
 const billplz = useForm({
     sandbox_production: props.billplz.sandbox_production,
-    sand_box_url: props.billplz.sand_box_url ?? '',
-    production_url: props.billplz.production_url ?? '',
     bill_collection_id: props.billplz.bill_collection_id ?? '',
     payment_collection_slug: props.billplz.payment_collection_slug ?? '',
     bill_charge: props.billplz.bill_charge ?? 0,
@@ -174,15 +172,12 @@ const hint = (masked) => (masked ? `Set — ends ${masked.slice(-4)}. Leave blan
                                 :invalid="Boolean(billplz.errors.bill_collection_id)" />
                             <div class="form-text">The Billplz collection bills are created in.</div>
                         </div>
-                        <div class="col-6">
-                            <CFormLabel for="bp-sandbox-url">Sandbox URL</CFormLabel>
-                            <CFormInput id="bp-sandbox-url" v-model="billplz.sand_box_url" class="code"
-                                :invalid="Boolean(billplz.errors.sand_box_url)" />
-                        </div>
-                        <div class="col-6">
-                            <CFormLabel for="bp-prod-url">Production URL</CFormLabel>
-                            <CFormInput id="bp-prod-url" v-model="billplz.production_url" class="code"
-                                :invalid="Boolean(billplz.errors.production_url)" />
+                        <div class="col-12">
+                            <CFormLabel>Endpoint</CFormLabel>
+                            <div class="code small text-body-secondary">{{ props.billplz.endpoint }}</div>
+                            <div class="form-text">
+                                Fixed by the mode above. It is where the API key is sent, so it is not editable.
+                            </div>
                         </div>
                         <div class="col-6">
                             <CFormLabel for="bp-key">API secret key</CFormLabel>

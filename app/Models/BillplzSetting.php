@@ -47,8 +47,21 @@ class BillplzSetting extends Model
         return (int) $this->sandbox_production === self::MODE_PRODUCTION;
     }
 
-    public function baseUrl(): ?string
+    /**
+     * Billplz has exactly two hosts, and they are not configuration.
+     *
+     * They used to come from `sand_box_url` / `production_url`, which the
+     * settings form let an operator edit — and this URL is where the API key
+     * is sent as HTTP Basic auth. Anyone who could open the payments screen
+     * could point it at a host of their own and collect the live key on the
+     * next checkout, without ever being able to read it from the form, which
+     * masks it. The columns stay for schema parity with the source; nothing
+     * reads them.
+     */
+    public function baseUrl(): string
     {
-        return $this->isProduction() ? $this->production_url : $this->sand_box_url;
+        return $this->isProduction()
+            ? 'https://www.billplz.com/'
+            : 'https://www.billplz-sandbox.com/';
     }
 }

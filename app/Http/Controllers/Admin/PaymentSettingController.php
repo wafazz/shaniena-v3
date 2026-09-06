@@ -58,8 +58,9 @@ class PaymentSettingController extends Controller
             ],
             'billplz' => [
                 'sandbox_production' => $billplz?->sandbox_production ?? BillplzSetting::MODE_SANDBOX,
-                'sand_box_url' => $billplz?->sand_box_url ?? 'https://www.billplz-sandbox.com/',
-                'production_url' => $billplz?->production_url ?? 'https://www.billplz.com/',
+                // Not editable, and not sent as a field: the endpoint is where
+                // the API key goes, so it is pinned in the model.
+                'endpoint' => ($billplz ?? new BillplzSetting)->baseUrl(),
                 'bill_collection_id' => $billplz?->bill_collection_id,
                 'payment_collection_slug' => $billplz?->payment_collection_slug,
                 'bill_charge' => (float) ($billplz?->bill_charge ?? 0),
@@ -134,8 +135,8 @@ class PaymentSettingController extends Controller
     {
         $data = $request->validate([
             'sandbox_production' => ['required', Rule::in([BillplzSetting::MODE_SANDBOX, BillplzSetting::MODE_PRODUCTION])],
-            'sand_box_url' => ['required', 'url', 'max:255'],
-            'production_url' => ['required', 'url', 'max:255'],
+            // No URL fields: Billplz's two hosts are pinned in the model,
+            // because that endpoint receives the API key.
             'bill_collection_id' => ['required', 'string', 'max:50'],
             'payment_collection_slug' => ['nullable', 'string', 'max:100'],
             // The flat FPX fee, and who it lands on.

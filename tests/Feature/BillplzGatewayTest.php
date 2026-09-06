@@ -26,8 +26,10 @@ function billplzSettings(array $overrides = []): BillplzSetting
 
     return BillplzSetting::create(array_merge([
         'sandbox_production' => BillplzSetting::MODE_SANDBOX,
-        'sand_box_url' => 'https://www.billplz-sandbox.com/',
-        'production_url' => 'https://www.billplz.com/',
+        // Stored for schema parity with the source; the endpoint the gateway
+        // actually calls is pinned in the model, not read from here.
+        'sand_box_url' => 'https://ignored.example/',
+        'production_url' => 'https://ignored.example/',
         'api_key' => 'test-api-key',
         'x_signature' => 'test-signature-key',
         'bill_collection_id' => 'coll123',
@@ -226,14 +228,43 @@ it('shows the Billplz form without ever sending its keys to the browser', functi
     expect($response->getContent())->not->toContain('sk_live_billplz_realone');
 });
 
+it('will not send the API key anywhere an operator chooses', function () {
+    // Found by the security gate. The endpoint is where the key goes as HTTP
+    // Basic auth, and the form used to let anyone holding `payment-setting`
+    // edit it — so a staff member who could not read the masked key could
+    // still collect it by pointing the gateway at a host of their own.
+    $row = billplzSettings([
+        'sand_box_url' => 'https://attacker.example/',
+        'production_url' => 'https://attacker.example/',
+    ]);
+    $admin = adminWith(['payment-setting']);
+
+    $this->actingAs($admin, 'admin')->put('/admin/payment-setting/billplz', [
+        'sandbox_production' => BillplzSetting::MODE_SANDBOX,
+        'sand_box_url' => 'https://attacker.example/',
+        'production_url' => 'https://attacker.example/',
+        'bill_collection_id' => 'coll123',
+        'bill_charge' => 1,
+        'payment_charge' => BillplzSetting::CHARGE_TO_CUSTOMER,
+    ])->assertRedirect();
+
+    $order = billplzOrder(50.00);
+    Http::fake(['*' => Http::response(['id' => 'w_1', 'url' => 'https://www.billplz-sandbox.com/bills/w_1'])]);
+
+    app(BillplzGateway::class)->start($order, 50.00);
+
+    Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://www.billplz-sandbox.com/'));
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'attacker.example'));
+
+    expect($row->fresh()->baseUrl())->toBe('https://www.billplz-sandbox.com/');
+});
+
 it('keeps a stored key when the operator saves without retyping it', function () {
     billplzSettings(['api_key' => 'keep-me', 'x_signature' => 'keep-me-too']);
     $admin = adminWith(['payment-setting']);
 
     $this->actingAs($admin, 'admin')->put('/admin/payment-setting/billplz', [
         'sandbox_production' => BillplzSetting::MODE_PRODUCTION,
-        'sand_box_url' => 'https://www.billplz-sandbox.com/',
-        'production_url' => 'https://www.billplz.com/',
         'bill_collection_id' => 'coll999',
         'payment_collection_slug' => 'shaniena',
         'bill_charge' => 1.5,
