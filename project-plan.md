@@ -182,7 +182,7 @@
 
 ## Phase 8: Testing & Verification *(Gate 4 — Probe/Echo)*
 
-- [x] **8.1** Pricing, postage, COD charge and stock math — `ShippingChargesTest`, `StockControlTest` and the Basket suite. Postage takes the first kilo flat and `ceil()`s the extras; a COD order under the benchmark pays the *lower* fee; the zone is decided by whether a country has configured states, not by a hardcoded Malaysia id.
+- [x] **8.1** Pricing, postage, COD charge and stock math — `ShippingChargesTest`, `StockControlTest` and the Basket suite. Postage takes the first kilo flat and `ceil()`s the extras; the COD boundary belongs to the above-benchmark fee (the source compares `subtotal < benchmark`, so RM100.00 on a RM100 benchmark pays `cod_fee_above`); the zone is decided by whether a country has configured states, not by a hardcoded Malaysia id.
 - [x] **8.2** Auth on both guards and the authorization matrix — `AdminLoginScreenTest`, `AdminAuthFeaturesTest`, `LegacyAdminPasswordTest`, `PageAccessTest`, `StorefrontAccountTest`, plus the Phase 7 guards that assert *every* admin route carries a grant rather than testing a sample.
 - [x] **8.3** Product CRUD, variants and stock — `ProductFormTest`, `ProductListTest`, `StockControlTest`.
 - [x] **8.4** Cart → checkout → order — `StorefrontJourneyTest`, `CheckoutPaymentTest`, and `CodOrderLifecycleTest`, which covers what the browser run found (below).
@@ -410,7 +410,7 @@ earlier "DDL unknown" conclusion went wrong): `cod_charges` (`migration_cod_char
 | 2026-09-05 | Purchase cap holds across separate additions | 2 + 2 against a cap of 3 rejected ✓ |
 | 2026-09-05 | One session cannot touch another's cart line | 403 ✓ |
 | 2026-09-05 | Postage rounds extra weight up to the whole kilo | 0.9/1.0kg → 6.50, 1.1/2.0kg → 9.50, 2.1kg → 12.50 ✓ |
-| 2026-09-05 | COD benchmark charges the higher fee at the threshold | 99.99 → 10.00, 100.00 → 8.00 ✓ |
+| 2026-09-05 | COD boundary pays the above-benchmark fee | benchmark 100, below 10, above 8: 99.99 → 10.00, 100.00 → 8.00 ✓ |
 | 2026-09-05 | Tracking needs order number **and** matching email | wrong email returns nothing ✓ |
 | 2026-09-05 | Every storefront route responds | 9 routes, all 200 ✓ |
 | 2026-09-05 | Pest suite after Phase 5 slice | 199 passed, 862 assertions ✓ |
