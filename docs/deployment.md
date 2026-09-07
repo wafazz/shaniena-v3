@@ -22,7 +22,8 @@ environment by `deploy/deploy.sh`.
 | MySQL 8, Redis 7 | systemd | Everything |
 
 Config for each is in `deploy/`: `nginx/shaniena.conf`,
-`supervisor/shaniena-worker.conf`, `supervisor/shaniena-ssr.conf`, `crontab`.
+`php-fpm/shaniena.conf`, `supervisor/shaniena-worker.conf`,
+`supervisor/shaniena-ssr.conf`, `crontab`.
 
 ## 2. Server requirements
 
@@ -62,10 +63,32 @@ mysql -e "CREATE USER 'shaniena'@'localhost' IDENTIFIED BY '...'; \
 php artisan key:generate --show          # paste into shared/.env as APP_KEY
 
 # services
-sudo cp deploy/nginx/shaniena.conf /etc/nginx/sites-available/shaniena
+# php-fpm: a pool of our own, on the socket nginx is configured for. The
+# default `www` pool listens elsewhere, so leaving it in place gets a 502.
+sudo cp deploy/php-fpm/shaniena.conf /etc/php/8.4/fpm/pool.d/shaniena.conf
+sudo rm -f /etc/php/8.4/fpm/pool.d/www.conf
+sudo systemctl restart php8.4-fpm
+ls -l /run/php/php8.4-fpm-shaniena.sock          # must exist before nginx reloads
+
+# nginx, in two passes. The shipped conf names certificate files, so it
+# cannot pass `nginx -t` until they exist, and certbot cannot issue them
+# without something already answering on :80 — so serve the challenge from a
+# throwaway http block first. Both A records must already point here.
+sudo mkdir -p /var/www/certbot
+sudo rm -f /etc/nginx/sites-enabled/default
+printf 'server {\n listen 80;\n server_name shaniena.com www.shaniena.com;\n location ^~ /.well-known/acme-challenge/ { root /var/www/certbot; }\n}\n' \
+    | sudo tee /etc/nginx/sites-available/shaniena
 sudo ln -s /etc/nginx/sites-available/shaniena /etc/nginx/sites-enabled/
-sudo certbot --nginx -d shaniena.com -d www.shaniena.com
 sudo nginx -t && sudo systemctl reload nginx
+
+# webroot, not --standalone: the authenticator certbot records here is the one
+# its renewal timer reuses in sixty days, and standalone would want port 80
+# back from a running nginx. The real conf below keeps serving this path.
+sudo certbot certonly --webroot -w /var/www/certbot -d shaniena.com -d www.shaniena.com
+
+sudo cp deploy/nginx/shaniena.conf /etc/nginx/sites-available/shaniena
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot renew --dry-run
 
 sudo cp deploy/supervisor/*.conf /etc/supervisor/conf.d/
 sudo supervisorctl reread && sudo supervisorctl update
@@ -152,6 +175,7 @@ attachments) lives in `shared/storage/app/public` and is reached through the
 | Queue worker | `/var/log/supervisor/shaniena-worker.log` |
 | SSR | `/var/log/supervisor/shaniena-ssr.log` |
 | Scheduler | `/var/log/shaniena/schedule.log` |
+| php-fpm | `/var/log/php8.4-fpm-shaniena.log` |
 | nginx | `/var/log/nginx/shaniena.{access,error}.log` |
 
 `LOG_LEVEL=warning` in production on purpose: `debug` writes query bindings,

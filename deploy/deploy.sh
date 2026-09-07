@@ -14,7 +14,7 @@
 set -Eeuo pipefail
 
 APP_DIR=${APP_DIR:-/var/www/shaniena}
-REPO=${REPO:-git@github.com:CodexLure/shaniena-v3.git}
+REPO=${REPO:-git@github.com:wafazz/shaniena-v3.git}
 REF=${1:-origin/main}
 KEEP=${KEEP:-5}                       # releases to retain
 PHP_FPM=${PHP_FPM:-php8.4-fpm}
@@ -48,7 +48,10 @@ log "Installing PHP dependencies"
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
 
 log "Building assets (client + SSR)"
-npm ci --omit=dev --no-audit --fund=false
+# Dev dependencies are needed here, unlike composer above: vite and
+# laravel-vite-plugin are devDependencies and vite.config.js imports both,
+# so --omit=dev leaves `npm run build` with nothing to run.
+npm ci --no-audit --fund=false
 npm run build
 
 log "Running migrations"
