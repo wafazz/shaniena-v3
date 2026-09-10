@@ -80,6 +80,39 @@
         color: #666666;
       }
     }
+
+    // The template styled input and select but never textarea, so the support
+    // form's message box stayed a bare browser box — the same omission the
+    // <select> note above records, found the same way.
+    textarea {
+      width: 100%;
+      border: 1px solid #e1e1e1;
+      border-radius: 2px;
+      margin-bottom: 25px;
+      font-size: 14px;
+      padding: 14px 20px;
+      color: #666666;
+      resize: vertical;
+
+      &::placeholder {
+        color: #666666;
+      }
+    }
+
+    // Hints and errors belong to the field above them. Left in the 25px gap
+    // under it they sit flush against the next field's label and read as
+    // introducing that one instead.
+    small {
+      display: block;
+      margin-top: -18px;
+      margin-bottom: 18px;
+      line-height: 1.4;
+
+      // A hint followed by an error: only the first pulls up.
+      & + small {
+        margin-top: 0;
+      }
+    }
   }
 
   .checkout__form__checkbox {

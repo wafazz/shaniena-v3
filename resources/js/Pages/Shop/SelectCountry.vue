@@ -19,10 +19,10 @@ const form = useForm({ country_id: props.countries.length === 1 ? props.countrie
                         <h4 class="mb-2">Where are we delivering?</h4>
                         <p class="mb-4">Prices, postage and payment options all depend on your country.</p>
 
-                        <form @submit.prevent="form.post('/select-country')">
-                            <div class="checkout__input">
-                                <p>Country<span>*</span></p>
-                                <select v-model="form.country_id" class="form-select" required>
+                        <form class="checkout__form" @submit.prevent="form.post('/select-country')">
+                            <div class="checkout__form__input">
+                                <label for="form-country-id">Country<span>*</span></label>
+                                <select id="form-country-id" v-model="form.country_id" class="form-select" required>
                                     <option value="">Select one</option>
                                     <option v-for="country in countries" :key="country.id" :value="country.id">
                                         {{ country.name }} ({{ country.sign }})
