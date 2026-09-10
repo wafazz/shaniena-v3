@@ -5,6 +5,8 @@
 // variables once, here, and never fight it with per-page utility classes.
 // ---------------------------------------------------------------------------
 
+@use "sass:color";
+
 // Brand tokens — carried over from the source storefront
 $primary: #e53637;
 
@@ -53,11 +55,11 @@ $input-btn-font-size: 0.9rem;
   --cui-btn-bg: #{$brand-interactive};
   --cui-btn-border-color: #{$brand-interactive};
   --cui-btn-color: #fff;
-  --cui-btn-hover-bg: #{darken($brand-interactive, 6%)};
-  --cui-btn-hover-border-color: #{darken($brand-interactive, 8%)};
+  --cui-btn-hover-bg: #{color.adjust($brand-interactive, $lightness: -6%)};
+  --cui-btn-hover-border-color: #{color.adjust($brand-interactive, $lightness: -8%)};
   --cui-btn-hover-color: #fff;
-  --cui-btn-active-bg: #{darken($brand-interactive, 10%)};
-  --cui-btn-active-border-color: #{darken($brand-interactive, 12%)};
+  --cui-btn-active-bg: #{color.adjust($brand-interactive, $lightness: -10%)};
+  --cui-btn-active-border-color: #{color.adjust($brand-interactive, $lightness: -12%)};
   --cui-btn-active-color: #fff;
   --cui-btn-disabled-bg: #{$brand-interactive};
   --cui-btn-disabled-border-color: #{$brand-interactive};

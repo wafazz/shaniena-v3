@@ -1,3 +1,5 @@
+@use "sass:color";
+
 // ---------------------------------------------------------------------------
 // Phone navigation
 //
@@ -113,7 +115,7 @@ body.menu-open {
     font-size: 17px;
     transition: background var(--t-fast) linear;
 
-    &:hover { background: darken($primary-color, 6%); }
+    &:hover { background: color.adjust($primary-color, $lightness: -6%); }
   }
 }
 

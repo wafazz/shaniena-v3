@@ -28,6 +28,26 @@ export default defineConfig({
             },
         }),
     ],
+    css: {
+        preprocessorOptions: {
+            scss: {
+                // Bootstrap 5 and CoreUI still use @import and the global
+                // colour functions internally, and neither is something this
+                // repo can fix. Their warnings ran to hundreds of lines and
+                // buried the ones about our own code — which is the only
+                // reason to read build output at all.
+                //
+                // quietDeps silences node_modules. `import` has to be listed
+                // separately because the @import statements that pull those
+                // packages in are in our files, not theirs. Migrating those to
+                // @use is the real fix, but it changes how every variable
+                // override reaches Bootstrap, so it is its own job.
+                quietDeps: true,
+                silenceDeprecations: ['import'],
+            },
+        },
+    },
+
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],
