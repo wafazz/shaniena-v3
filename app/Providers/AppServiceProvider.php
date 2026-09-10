@@ -114,6 +114,14 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinutes(10, 5)->by($request->ip()),
         ]);
 
+        // One tab with an open ticket polls this every 20 seconds — 3 a
+        // minute. Tighter than the visitor counter despite the same cadence,
+        // because this one answers a ticket-number-and-email pair, and a
+        // generous ceiling on that is a lane for guessing at them.
+        RateLimiter::for('support-thread', fn (Request $request) => [
+            Limit::perMinute(30)->by($request->ip()),
+        ]);
+
         // The basket drawer reads this whenever it opens, and a shopper may
         // open it repeatedly — so it is generous, but it is the one storefront
         // endpoint that returns data without a form or a token behind it.

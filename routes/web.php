@@ -142,6 +142,12 @@ Route::get('support', [SupportController::class, 'show'])->name('shop.support');
 Route::post('support', [SupportController::class, 'store'])
     ->middleware('throttle:support')
     ->name('shop.support.store');
+// Read-only, polled by the page while an open ticket is on screen. Its own
+// throttle: it is hit far more often than the forms, and unlike them it
+// returns data rather than writing a row.
+Route::get('support/thread', [SupportController::class, 'thread'])
+    ->middleware('throttle:support-thread')
+    ->name('shop.support.thread');
 Route::post('support/reply', [SupportController::class, 'reply'])
     ->middleware('throttle:support')
     ->name('shop.support.reply');
