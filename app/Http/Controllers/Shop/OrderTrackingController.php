@@ -16,6 +16,19 @@ use Inertia\Response;
  */
 class OrderTrackingController extends Controller
 {
+    /**
+     * The stages an order walks when nothing goes wrong, in order — read off
+     * Order::ALLOWED_TRANSITIONS rather than retyped. Anything else (awaiting
+     * payment, returned, cancelled, draft) is deliberately not a step on this
+     * line: showing "Cancelled" as progress towards delivery would be a lie.
+     */
+    private const HAPPY_PATH = [
+        Order::STATUS_NEW,
+        Order::STATUS_PROCESSING,
+        Order::STATUS_IN_DELIVERY,
+        Order::STATUS_COMPLETED,
+    ];
+
     public function __invoke(Request $request): Response
     {
         $order = null;
@@ -40,6 +53,12 @@ class OrderTrackingController extends Controller
                 'reference' => $order->reference(),
                 'placed_at' => $order->created_at?->format('j M Y'),
                 'status' => $order->statusLabel(),
+                'stages' => array_map(fn (int $s) => Order::STATUSES[$s], self::HAPPY_PATH),
+                // Null when the order is off the ordinary line, which the page
+                // renders as a plain state instead of a progress bar.
+                'stage' => ($at = array_search($order->status, self::HAPPY_PATH, true)) === false
+                    ? null
+                    : $at,
                 'courier' => $order->courier_service ?: null,
                 'awb' => $order->awb_number ?: null,
                 'tracking_url' => $order->tracking_url ?: null,

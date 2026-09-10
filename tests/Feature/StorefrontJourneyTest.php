@@ -200,3 +200,29 @@ it('needs both the order number and the matching email', function () {
     $this->get("/track-order?order={$order->id}&email=buyer@example.test")
         ->assertInertia(fn ($page) => $page->where('order.reference', $order->reference()));
 });
+
+it('places the order on the delivery line it has actually reached', function () {
+    $order = Order::factory()->create([
+        'customer_email' => 'buyer@example.test',
+        'status' => Order::STATUS_IN_DELIVERY,
+    ]);
+
+    $this->get("/track-order?order={$order->id}&email=buyer@example.test")
+        ->assertInertia(fn ($page) => $page
+            ->where('order.stage', 2)
+            ->where('order.stages', ['New Order', 'Processing', 'In Delivery', 'Completed']));
+});
+
+it('keeps an order that never reached the line off it', function () {
+    // A cancelled order drawn as two-thirds of the way to delivery would be
+    // a progress bar telling the customer something untrue.
+    $order = Order::factory()->create([
+        'customer_email' => 'buyer@example.test',
+        'status' => Order::STATUS_CANCELLED,
+    ]);
+
+    $this->get("/track-order?order={$order->id}&email=buyer@example.test")
+        ->assertInertia(fn ($page) => $page
+            ->where('order.stage', null)
+            ->where('order.status', 'Cancelled'));
+});
