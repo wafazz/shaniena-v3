@@ -94,7 +94,10 @@ function search() {
         <header class="electro-header">
             <div class="container">
                 <div class="electro-header__row">
-                    <Link href="/" class="electro-logo">{{ footer.name ?? 'Shaniena' }}</Link>
+                    <Link href="/" class="electro-logo">
+                        <img v-if="footer.logo" :src="footer.logo" :alt="footer.name ?? 'Shaniena'">
+                        <template v-else>{{ footer.name ?? 'Shaniena' }}</template>
+                    </Link>
 
                     <!-- The search is the middle of this header, not an icon
                          that opens one. -->

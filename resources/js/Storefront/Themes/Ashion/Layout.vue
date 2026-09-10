@@ -132,7 +132,10 @@ onBeforeUnmount(() => {
                 <div class="row">
                     <div class="col-xl-3 col-lg-2">
                         <div class="header__logo">
-                            <Link href="/">{{ footer.name ?? 'Shaniena' }}</Link>
+                            <Link href="/">
+                                <img v-if="footer.logo" :src="footer.logo" :alt="footer.name ?? 'Shaniena'">
+                                <template v-else>{{ footer.name ?? 'Shaniena' }}</template>
+                            </Link>
                         </div>
                     </div>
 
@@ -242,7 +245,10 @@ onBeforeUnmount(() => {
                         <div class="col-lg-4 col-md-6 col-sm-6">
                             <div class="footer__about">
                                 <div class="footer__logo">
-                                    <Link href="/">{{ footer.name ?? 'Shaniena' }}</Link>
+                                    <Link href="/">
+                                        <img v-if="footer.logo" :src="footer.logo" :alt="footer.name ?? 'Shaniena'">
+                                        <template v-else>{{ footer.name ?? 'Shaniena' }}</template>
+                                    </Link>
                                 </div>
                                 <p v-if="footer.address">{{ footer.address }}</p>
                                 <p v-if="footer.phone">{{ footer.phone }}</p>

@@ -5,12 +5,14 @@ namespace App\Http\Middleware;
 use App\Models\Brand;
 use App\Models\Cart;
 use App\Models\Category;
+use App\Models\ImageSetting;
 use App\Models\ListCountry;
 use App\Services\Storefront\Visitors;
 use App\Services\StoreSettings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -35,6 +37,11 @@ class HandleStorefrontRequests
     public const CART_COOKIE = 'cart_token';
 
     private const CART_COOKIE_DAYS = 30;
+
+    /** Bumped by LogoSettingController whenever the active logo changes. */
+    public const LOGO_CACHE_KEY = 'storefront:logo';
+
+    private const LOGO_CACHE_TTL = 600;
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -107,7 +114,28 @@ class HandleStorefrontRequests
             'facebook' => $settings->get('facebook_url'),
             'instagram' => $settings->get('instagram_url'),
             'whatsapp' => $settings->get('whatsapp_number'),
+            'logo' => self::logo(),
         ];
+    }
+
+    /**
+     * The active logo's URL, or null while none has been uploaded — in which
+     * case the themes fall back to the store name as text, exactly as they
+     * rendered before. Cached like the nav: this is read on every storefront
+     * page and changes about as often as the shop is rebranded.
+     */
+    public static function logo(): ?string
+    {
+        $url = Cache::remember(self::LOGO_CACHE_KEY, self::LOGO_CACHE_TTL, function () {
+            $path = ImageSetting::query()->logos()->where('sorting', 1)->value('image_path');
+
+            // '' rather than null as the "no logo" marker: Cache::remember
+            // reads a cached null as a miss, so a shop that has never
+            // uploaded one would re-run this query on every page.
+            return $path ? Storage::disk('public')->url($path) : '';
+        });
+
+        return $url ?: null;
     }
 
     private function resolveCountry(Request $request): ?ListCountry
