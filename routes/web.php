@@ -131,6 +131,13 @@ Route::get('order/{order}/thanks', [PaymentController::class, 'thanks'])->name('
 Route::get('order/{order}/failed', [PaymentController::class, 'failed'])->name('shop.order.failed');
 
 // --- support -------------------------------------------------------------
+// The footers of both themes pointed at /customer/support-ticket, which was
+// never a route here and 404'd — the source's URL, carried over with the
+// markup. The links go straight to /support now; these keep anything already
+// bookmarked or indexed under the old paths working.
+Route::redirect('support-ticket', '/support', 301);
+Route::redirect('customer/support-ticket', '/support', 301);
+
 Route::get('support', [SupportController::class, 'show'])->name('shop.support');
 Route::post('support', [SupportController::class, 'store'])
     ->middleware('throttle:support')
@@ -156,6 +163,20 @@ foreach (['about', 'policy', 'terms'] as $page) {
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest:admin')->group(function () {
+        // The console had no route of its own at /admin, so typing it got a
+        // 404. Inside the guest group on purpose, rather than standing alone
+        // outside it: an admin who is already signed in is caught by
+        // guest:admin here and sent straight to the dashboard by
+        // redirectUsersTo (bootstrap/app.php), instead of bouncing through
+        // the sign-in form to get there. It also means this route satisfies
+        // the guard SecurityGuardsTest requires of everything under /admin,
+        // rather than needing an exception carved out for it.
+        //
+        // 302, not 301: where this ought to land depends on whether you are
+        // signed in, so it is not permanently anywhere, and a hard-cached 301
+        // would be awkward to undo if /admin ever becomes a real page.
+        Route::redirect('/', '/admin/login')->name('home');
+
         Route::get('login', [LoginController::class, 'show'])->name('login');
         Route::post('login', [LoginController::class, 'store'])->name('login.store');
 
