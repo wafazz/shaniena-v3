@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
                                     <ul class="dropdown">
                                         <li><Link href="/track-order">Tracking</Link></li>
                                         <li><Link href="/contact">Contact</Link></li>
-                                        <li><Link href="/customer/support-ticket">Support Tickets</Link></li>
+                                        <li><Link href="/support">Support Tickets</Link></li>
                                         <li><Link href="/blog">Blog</Link></li>
                                     </ul>
                                 </li>
@@ -257,7 +257,7 @@ onBeforeUnmount(() => {
                                     <li><Link href="/about">About</Link></li>
                                     <li><Link href="/blog">Blogs &amp; Announcement</Link></li>
                                     <li><Link href="/contact">Contact</Link></li>
-                                    <li><Link href="/customer/support-ticket">Support Tickets</Link></li>
+                                    <li><Link href="/support">Support Tickets</Link></li>
                                 </ul>
                             </div>
                         </div>

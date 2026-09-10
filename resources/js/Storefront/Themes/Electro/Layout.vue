@@ -196,7 +196,7 @@ function search() {
                         <ul>
                             <li><Link href="/track-order">Track an order</Link></li>
                             <li><Link href="/checkout">Checkout</Link></li>
-                            <li><Link href="/customer/support-ticket">Support tickets</Link></li>
+                            <li><Link href="/support">Support tickets</Link></li>
                             <li><Link href="/account">My account</Link></li>
                         </ul>
                     </div>

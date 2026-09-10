@@ -29,6 +29,25 @@ function makeAdminAccount(string $email = 'ops@example.test', string $password =
     return MemberHq::findOrFail($id);
 }
 
+it('sends a stranger typing /admin to the sign-in form', function () {
+    // /admin was a 404 — the console has no route of its own there.
+    $this->get('/admin')->assertRedirect('/admin/login');
+    $this->get('/admin/login')->assertOk();
+});
+
+it('sends a signed-in admin straight to the console, not through the form', function () {
+    // /admin sits inside the guest:admin group, so an admin who is already
+    // signed in never reaches the redirect: the guard catches them first and
+    // redirectUsersTo sends them to the dashboard in one hop. Standing the
+    // route outside that group would land them on the sign-in form and let it
+    // bounce them onward, which works but is a wasted round trip.
+    $admin = adminWith(['dashboard']);
+
+    $this->actingAs($admin, 'admin')
+        ->get('/admin')
+        ->assertRedirect(route('admin.dashboard'));
+});
+
 it('persists a remember token when an admin logs in with remember me', function () {
     $admin = makeAdminAccount();
 

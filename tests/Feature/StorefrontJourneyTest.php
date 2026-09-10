@@ -189,6 +189,28 @@ it('rejects a state that does not belong to the country', function () {
     ])->assertSessionHasErrors('state');
 });
 
+// --- support -------------------------------------------------------------
+
+it('keeps the old support-ticket urls working', function () {
+    // Both themes' footers linked to /customer/support-ticket, which was the
+    // source's path and never a route here — so the link 404'd on every page.
+    $this->get('/customer/support-ticket')->assertRedirect('/support');
+    $this->get('/support-ticket')->assertRedirect('/support');
+});
+
+it('points the footer links at the real url rather than through the redirect', function () {
+    // The footer is client-side, so asserting on the response body passes
+    // whether the href is right or wrong — it is simply not in there. Read
+    // the components, the way PwaAssetsTest reads the root view.
+    foreach (['Ashion', 'Electro'] as $theme) {
+        $source = (string) file_get_contents(
+            resource_path("js/Storefront/Themes/{$theme}/Layout.vue")
+        );
+
+        expect($source)->not->toContain('/customer/support-ticket');
+    }
+});
+
 // --- tracking ------------------------------------------------------------
 
 it('needs both the order number and the matching email', function () {

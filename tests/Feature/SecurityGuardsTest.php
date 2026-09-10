@@ -47,7 +47,7 @@ function phpSources(string $directory): array
  * member of staff owns. Anything else must name a page.
  */
 const UNGUARDED_ADMIN_ROUTES = [
-    'admin.login', 'admin.login.store', 'admin.logout',
+    'admin.home', 'admin.login', 'admin.login.store', 'admin.logout',
     'admin.password.request', 'admin.password.email',
     'admin.password.reset', 'admin.password.update',
     'admin.password', 'admin.password.change',
