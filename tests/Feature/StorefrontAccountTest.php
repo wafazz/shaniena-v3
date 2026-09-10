@@ -159,6 +159,68 @@ it('needs the ticket number and the matching email to read a ticket', function (
         ->assertInertia(fn ($page) => $page->where('ticket.ticket_no', 'T-ABCD1234'));
 });
 
+it('carries the looked-up email back to the page, so replying by link works', function () {
+    // The reply form and the thread poll both need the address the ticket was
+    // found with, and neither has a session to recover it from. Without this
+    // the link in a notification opened the ticket read-only: the email box
+    // was blank, so a reply failed validation and the poll never fired.
+    SupportTicket::create([
+        'customer_name' => 'Aisyah', 'customer_email' => 'a@example.test',
+        'ticket_no' => 'T-LINK0001', 'title' => 'Help', 'description' => 'Please',
+        'status' => SupportTicket::STATUS_NEW, 'priority' => 'medium',
+    ]);
+
+    $this->get('/support?ticket_no=T-LINK0001&email=a@example.test')
+        ->assertInertia(fn ($page) => $page
+            ->where('prefill.ticket_no', 'T-LINK0001')
+            ->where('prefill.email', 'a@example.test')
+            ->where('ticket.ticket_no', 'T-LINK0001'));
+});
+
+it('serves the live thread only to the number and matching email together', function () {
+    // The polled endpoint is unauthenticated, exactly like the page lookup it
+    // mirrors. If it ever answers a ticket number on its own it hands out
+    // other people's support conversations.
+    SupportTicket::create([
+        'customer_name' => 'Aisyah', 'customer_email' => 'a@example.test',
+        'ticket_no' => 'T-LIVE0001', 'title' => 'Help', 'description' => 'Please',
+        'status' => SupportTicket::STATUS_NEW, 'priority' => 'medium',
+    ]);
+
+    $this->getJson('/support/thread?ticket_no=T-LIVE0001&email=wrong@example.test')
+        ->assertNotFound();
+
+    $this->getJson('/support/thread?ticket_no=T-LIVE0001')
+        ->assertStatus(422);
+
+    $this->getJson('/support/thread?ticket_no=T-LIVE0001&email=a@example.test')
+        ->assertOk()
+        ->assertJsonPath('ticket_no', 'T-LIVE0001')
+        ->assertJsonPath('closed', false);
+});
+
+it('gives the polled thread the same shape the page was rendered with', function () {
+    // Built in two places these drift, and the first poll would then quietly
+    // replace a rendered field with nothing.
+    SupportTicket::create([
+        'customer_name' => 'Aisyah', 'customer_email' => 'a@example.test',
+        'ticket_no' => 'T-SHAPE001', 'title' => 'Help', 'description' => 'Please',
+        'status' => SupportTicket::STATUS_NEW, 'priority' => 'medium',
+    ]);
+
+    $rendered = null;
+    $this->get('/support?ticket_no=T-SHAPE001&email=a@example.test')
+        ->assertInertia(function ($page) use (&$rendered) {
+            $rendered = $page->toArray()['props']['ticket'];
+        });
+
+    $polled = $this->getJson('/support/thread?ticket_no=T-SHAPE001&email=a@example.test')
+        ->assertOk()
+        ->json();
+
+    expect($polled)->toEqual($rendered);
+});
+
 it('puts a replied-to ticket back in the queue', function () {
     $ticket = SupportTicket::create([
         'customer_name' => 'A', 'customer_email' => 'a@example.test',
