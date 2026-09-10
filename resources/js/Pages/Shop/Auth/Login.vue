@@ -15,16 +15,16 @@ const form = useForm({ email: '', password: '', remember: false });
                     <div class="col-lg-5">
                         <h4 class="mb-4">Sign in</h4>
 
-                        <form @submit.prevent="form.post('/login')">
+                        <form class="checkout__form" @submit.prevent="form.post('/login')">
                             <p v-if="form.errors.email" class="text-danger">{{ form.errors.email }}</p>
 
-                            <div class="checkout__input">
-                                <p>Email<span>*</span></p>
-                                <input v-model="form.email" type="email" autocomplete="username" required>
+                            <div class="checkout__form__input">
+                                <label for="form-email">Email<span>*</span></label>
+                                <input id="form-email" v-model="form.email" type="email" autocomplete="username" required>
                             </div>
-                            <div class="checkout__input">
-                                <p>Password<span>*</span></p>
-                                <input v-model="form.password" type="password" autocomplete="current-password" required>
+                            <div class="checkout__form__input">
+                                <label for="form-password">Password<span>*</span></label>
+                                <input id="form-password" v-model="form.password" type="password" autocomplete="current-password" required>
                             </div>
 
                             <label class="d-flex align-items-center gap-2 mb-3">

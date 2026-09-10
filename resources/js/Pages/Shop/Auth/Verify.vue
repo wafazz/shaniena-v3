@@ -26,14 +26,14 @@ const resend = useForm({ email: props.email });
                         <p v-if="flash.success" class="text-success">{{ flash.success }}</p>
                         <p v-if="flash.error" class="text-danger">{{ flash.error }}</p>
 
-                        <form @submit.prevent="form.post('/verify-email')">
-                            <div class="checkout__input">
-                                <p>Email<span>*</span></p>
-                                <input v-model="form.email" type="email" required>
+                        <form class="checkout__form" @submit.prevent="form.post('/verify-email')">
+                            <div class="checkout__form__input">
+                                <label for="form-email">Email<span>*</span></label>
+                                <input id="form-email" v-model="form.email" type="email" required>
                             </div>
-                            <div class="checkout__input">
-                                <p>Code<span>*</span></p>
-                                <input v-model="form.code" type="text" inputmode="numeric" maxlength="6"
+                            <div class="checkout__form__input">
+                                <label for="form-code">Code<span>*</span></label>
+                                <input id="form-code" v-model="form.code" type="text" inputmode="numeric" maxlength="6"
                                     autocomplete="one-time-code" required>
                                 <small v-if="form.errors.code" class="text-danger">{{ form.errors.code }}</small>
                             </div>

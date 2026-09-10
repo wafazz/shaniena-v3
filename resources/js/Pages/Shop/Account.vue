@@ -57,28 +57,38 @@ const form = useForm({ ...props.member });
 
                     <div class="col-lg-5">
                         <h5 class="mb-3">Your details</h5>
-                        <form @submit.prevent="form.put('/account', { preserveScroll: true })">
-                            <div class="checkout__input">
-                                <p>Name<span>*</span></p>
-                                <input v-model="form.name" type="text" required>
+                        <form class="checkout__form" @submit.prevent="form.put('/account', { preserveScroll: true })">
+                            <div class="checkout__form__input">
+                                <label for="form-name">Name<span>*</span></label>
+                                <input id="form-name" v-model="form.name" type="text" required>
                             </div>
-                            <div class="checkout__input">
-                                <p>Email</p>
-                                <input :value="member.email" type="email" disabled>
+                            <div class="checkout__form__input">
+                                <label for="member-email">Email</label>
+                                <input id="member-email" :value="member.email" type="email" disabled>
                             </div>
-                            <div class="checkout__input">
-                                <p>Phone<span>*</span></p>
-                                <input v-model="form.phone" type="tel" required>
+                            <div class="checkout__form__input">
+                                <label for="form-phone">Phone<span>*</span></label>
+                                <input id="form-phone" v-model="form.phone" type="tel" required>
                             </div>
-                            <div class="checkout__input">
-                                <p>Address</p>
-                                <input v-model="form.address_1" type="text" placeholder="Street address">
-                                <input v-model="form.address_2" type="text" class="mt-2" placeholder="Apartment, suite (optional)">
+                            <div class="checkout__form__input">
+                                <label for="form-address-1">Address</label>
+                                <input id="form-address-1" v-model="form.address_1" type="text" placeholder="Street address">
+                                <input v-model="form.address_2" type="text" class="mt-2"
+                                    aria-label="Address line 2" placeholder="Apartment, suite (optional)">
                             </div>
                             <div class="row">
-                                <div class="col-4 checkout__input"><p>Postcode</p><input v-model="form.postcode" type="text"></div>
-                                <div class="col-4 checkout__input"><p>City</p><input v-model="form.city" type="text"></div>
-                                <div class="col-4 checkout__input"><p>State</p><input v-model="form.state" type="text"></div>
+                                <div class="col-4 checkout__form__input">
+                                    <label for="form-postcode">Postcode</label>
+                                    <input id="form-postcode" v-model="form.postcode" type="text">
+                                </div>
+                                <div class="col-4 checkout__form__input">
+                                    <label for="form-city">City</label>
+                                    <input id="form-city" v-model="form.city" type="text">
+                                </div>
+                                <div class="col-4 checkout__form__input">
+                                    <label for="form-state">State</label>
+                                    <input id="form-state" v-model="form.state" type="text">
+                                </div>
                             </div>
 
                             <button type="submit" class="site-btn" :disabled="form.processing">
