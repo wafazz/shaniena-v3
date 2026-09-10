@@ -135,6 +135,18 @@ $input-btn-font-size: 0.9rem;
   max-width: 27rem;
 }
 
+.auth-brand {
+  margin-bottom: 1.25rem;
+  font-weight: 700;
+  font-size: 1.25rem;
+
+  // Logo dimensions are not validated on upload, only file size.
+  img {
+    max-height: 44px;
+    width: auto;
+  }
+}
+
 // --- tables --------------------------------------------------------------
 .select-col { width: 2.5rem; }
 .actions-col { width: 1%; }

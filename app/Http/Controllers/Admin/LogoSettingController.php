@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Middleware\HandleStorefrontRequests;
 use App\Models\ImageSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -69,16 +68,17 @@ class LogoSettingController extends Controller
     }
 
     /**
-     * The storefront caches the active logo for ten minutes. Without this the
-     * success message above ("updated across the storefront") stays untrue for
-     * most of that window, which reads as a broken upload.
+     * The storefront and the console both cache the active logo for ten
+     * minutes. Without this the success message above ("updated across the
+     * storefront") stays untrue for most of that window, which reads as a
+     * broken upload.
      *
      * Only the two paths that change which logo is active need it: deleting a
-     * non-default logo leaves the storefront alone, and destroy() already
+     * non-default logo leaves both surfaces alone, and destroy() already
      * refuses to delete the active one.
      */
     private function flushStorefront(): void
     {
-        Cache::forget(HandleStorefrontRequests::LOGO_CACHE_KEY);
+        Cache::forget(ImageSetting::LOGO_CACHE_KEY);
     }
 }

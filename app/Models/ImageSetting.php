@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Uploaded logo / slider images. `sorting` is used as a "is default" flag for
@@ -18,6 +20,11 @@ class ImageSetting extends Model
     public const TYPE_LOGO = 'logo';
 
     public const TYPE_SLIDER = 'slider';
+
+    /** Forgotten by LogoSettingController whenever the active logo changes. */
+    public const LOGO_CACHE_KEY = 'storefront:logo';
+
+    private const LOGO_CACHE_TTL = 600;
 
     protected $fillable = ['use_type', 'image_path', 'use_link', 'sorting'];
 
@@ -51,5 +58,27 @@ class ImageSetting extends Model
     public function isDefault(): bool
     {
         return (int) $this->sorting === 1;
+    }
+
+    /**
+     * The active logo's URL, or null while none has been uploaded — in which
+     * case the storefront themes and the console sidebar both fall back to the
+     * store name as text, exactly as they rendered before.
+     *
+     * Cached because it is read on every page of both surfaces and changes
+     * about as often as the shop is rebranded.
+     */
+    public static function activeUrl(): ?string
+    {
+        $url = Cache::remember(self::LOGO_CACHE_KEY, self::LOGO_CACHE_TTL, function () {
+            $path = static::query()->logos()->where('sorting', 1)->value('image_path');
+
+            // '' rather than null as the "no logo" marker: Cache::remember
+            // reads a cached null as a miss, so a shop that has never
+            // uploaded one would re-run this query on every page.
+            return $path ? Storage::disk('public')->url($path) : '';
+        });
+
+        return $url ?: null;
     }
 }

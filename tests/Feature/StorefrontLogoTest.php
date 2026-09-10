@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\HandleStorefrontRequests;
 use App\Models\ImageSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -83,5 +82,41 @@ it('caches the lookup instead of querying it on every page', function () {
 
     // The value is read on every storefront page; the query behind it should
     // run once per window, not once per view.
-    expect(cache()->has(HandleStorefrontRequests::LOGO_CACHE_KEY))->toBeTrue();
+    expect(cache()->has(ImageSetting::LOGO_CACHE_KEY))->toBeTrue();
+});
+
+// --- the console -------------------------------------------------------------
+
+it('brands the admin sign-in screen, which nobody is signed in to yet', function () {
+    $logo = uploadLogo();
+    auth('admin')->logout();
+
+    // The shared `store` prop has to reach a guest request, or the login
+    // screen is the one console page that stays anonymous.
+    $this->get('/admin/login')->assertOk()->assertInertia(
+        fn (AssertableInertia $page) => $page->where(
+            'store.logo',
+            Storage::disk('public')->url($logo->image_path),
+        ),
+    );
+});
+
+it('brands the console sidebar once someone is signed in', function () {
+    $logo = uploadLogo();
+    $admin = adminWith(['dashboard']);
+
+    $this->actingAs($admin, 'admin')->get('/admin/dashboard')->assertInertia(
+        fn (AssertableInertia $page) => $page->where(
+            'store.logo',
+            Storage::disk('public')->url($logo->image_path),
+        ),
+    );
+});
+
+it('leaves the console on the store name when no logo is uploaded', function () {
+    $admin = adminWith(['dashboard']);
+
+    $this->actingAs($admin, 'admin')->get('/admin/dashboard')->assertInertia(
+        fn (AssertableInertia $page) => $page->where('store.logo', null),
+    );
 });

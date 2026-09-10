@@ -19,6 +19,7 @@ const search = ref('');
 const nav = computed(() => page.props.nav ?? []);
 const admin = computed(() => page.props.auth?.admin ?? null);
 const storeName = computed(() => page.props.store?.name ?? 'Shaniena');
+const storeLogo = computed(() => page.props.store?.logo ?? null);
 const canSearch = computed(() => Boolean(page.props.can?.searchOrders));
 
 const isActive = (slug) => slug === props.current;
@@ -51,7 +52,10 @@ function logout() {
             @visible-change="(value) => (sidebarVisible = value)"
         >
             <CSidebarHeader class="border-bottom">
-                <CSidebarBrand class="fw-semibold">{{ storeName }}</CSidebarBrand>
+                <CSidebarBrand class="fw-semibold">
+                    <img v-if="storeLogo" :src="storeLogo" :alt="storeName" class="sidebar-brand-full">
+                    <template v-else>{{ storeName }}</template>
+                </CSidebarBrand>
             </CSidebarHeader>
 
             <CSidebarNav>
