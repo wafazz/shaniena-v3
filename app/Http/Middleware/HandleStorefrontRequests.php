@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Brand;
 use App\Models\Cart;
 use App\Models\Category;
+use App\Models\ImageSetting;
 use App\Models\ListCountry;
 use App\Services\Storefront\Visitors;
 use App\Services\StoreSettings;
@@ -107,6 +108,7 @@ class HandleStorefrontRequests
             'facebook' => $settings->get('facebook_url'),
             'instagram' => $settings->get('instagram_url'),
             'whatsapp' => $settings->get('whatsapp_number'),
+            'logo' => ImageSetting::activeUrl(),
         ];
     }
 

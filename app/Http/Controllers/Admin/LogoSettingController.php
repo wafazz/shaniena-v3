@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ImageSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -42,6 +43,7 @@ class LogoSettingController extends Controller
         // would render nothing until someone remembered to pick it.
         if (ImageSetting::logos()->count() === 1) {
             $logo->makeDefault();
+            $this->flushStorefront();
         }
 
         return back()->with('success', 'Logo uploaded.');
@@ -50,6 +52,7 @@ class LogoSettingController extends Controller
     public function makeDefault(ImageSetting $logo): RedirectResponse
     {
         $logo->makeDefault();
+        $this->flushStorefront();
 
         return back()->with('success', 'Logo updated across the storefront.');
     }
@@ -62,5 +65,20 @@ class LogoSettingController extends Controller
         $logo->delete();
 
         return back()->with('success', 'Logo removed.');
+    }
+
+    /**
+     * The storefront and the console both cache the active logo for ten
+     * minutes. Without this the success message above ("updated across the
+     * storefront") stays untrue for most of that window, which reads as a
+     * broken upload.
+     *
+     * Only the two paths that change which logo is active need it: deleting a
+     * non-default logo leaves both surfaces alone, and destroy() already
+     * refuses to delete the active one.
+     */
+    private function flushStorefront(): void
+    {
+        Cache::forget(ImageSetting::LOGO_CACHE_KEY);
     }
 }

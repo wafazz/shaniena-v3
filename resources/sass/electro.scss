@@ -138,6 +138,13 @@ $font-family-sans-serif: 'Roboto', -apple-system, 'Segoe UI', Roboto, sans-serif
   white-space: nowrap;
 
   &:hover { color: $primary-color; }
+
+  // See _header.scss: dimensions are not validated on upload.
+  img {
+    max-height: 42px;
+    width: auto;
+    display: block;
+  }
 }
 
 .electro-search {

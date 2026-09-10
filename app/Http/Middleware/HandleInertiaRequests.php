@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ImageSetting;
 use App\Models\MemberHq;
 use App\Services\AdminNavigation;
 use App\Services\Storefront\Themes;
@@ -81,6 +82,9 @@ class HandleInertiaRequests extends Middleware
 
             'store' => fn () => [
                 'name' => app(StoreSettings::class)->get('store_name', 'Shaniena'),
+                // The console chrome and the admin sign-in screen brand
+                // themselves from this; `shop` below is null on admin routes.
+                'logo' => ImageSetting::activeUrl(),
             ],
 
             // Storefront-wide props. Lazy, so an admin request never pays for

@@ -12,6 +12,13 @@
     a {
         display: inline-block;
     }
+
+    // The upload rule caps file size, not dimensions, so an
+    // uncropped logo would otherwise push the nav off screen.
+    img {
+        max-height: 46px;
+        width: auto;
+    }
 }
 
 .header__menu {
