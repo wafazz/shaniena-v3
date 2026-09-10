@@ -2,6 +2,7 @@
 import { Link, router } from '@inertiajs/vue3';
 import Seo from '../../Storefront/Seo.vue';
 import StorefrontLayout from '../../Layouts/StorefrontLayout.vue';
+import QuantityStepper from '../../Storefront/QuantityStepper.vue';
 
 const props = defineProps({ summary: { type: Object, required: true } });
 
@@ -57,15 +58,16 @@ function remove(line) {
                                         </td>
                                         <td class="cart__price">{{ summary.currency }} {{ money(line.unit_price) }}</td>
                                         <td class="cart__quantity">
-                                            <input type="number" min="1" :max="line.max_purchase" :value="line.quantity"
-                                                class="form-control" style="width: 6rem"
-                                                :aria-label="`Quantity for ${line.name}`"
-                                                @change="setQty(line, Number($event.target.value))">
+                                            <QuantityStepper :model-value="line.quantity" :max="line.max_purchase"
+                                                :label="`Quantity for ${line.name}`"
+                                                @update:model-value="setQty(line, $event)" />
                                         </td>
                                         <td class="cart__total">{{ summary.currency }} {{ money(line.line_total) }}</td>
                                         <td class="cart__close">
-                                            <button type="button" class="btn btn-link p-0"
-                                                :aria-label="`Remove ${line.name}`" @click="remove(line)">×</button>
+                                            <button type="button" class="cart__remove"
+                                                :aria-label="`Remove ${line.name}`" @click="remove(line)">
+                                                <span aria-hidden="true">&times;</span>
+                                            </button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -74,19 +76,19 @@ function remove(line) {
                     </div>
 
                     <div class="col-lg-4">
-                        <div class="cart__discount">
+                        <!-- cart__total__procced, not cart__discount: the
+                             latter is Ashion's promo-code box, which styles
+                             nothing here and left this panel with no
+                             background, padding or type at all. There is no
+                             voucher table in the schema, so the promo box it
+                             was named after has nothing to be. -->
+                        <div class="cart__total__procced">
                             <h6>Order summary</h6>
-                            <ul class="list-unstyled">
-                                <li class="d-flex justify-content-between py-1">
-                                    <span>Subtotal</span>
-                                    <b>{{ summary.currency }} {{ money(summary.subtotal) }}</b>
-                                </li>
-                                <li class="d-flex justify-content-between py-1 text-muted">
-                                    <span>Postage</span>
-                                    <span>Worked out at checkout</span>
-                                </li>
+                            <ul>
+                                <li>Subtotal <span>{{ summary.currency }} {{ money(summary.subtotal) }}</span></li>
+                                <li class="cart__postage">Postage <span>Worked out at checkout</span></li>
                             </ul>
-                            <Link href="/checkout" class="site-btn w-100 text-center d-block mt-3">Checkout</Link>
+                            <Link href="/checkout" class="primary-btn">Checkout</Link>
                         </div>
                     </div>
                 </div>
@@ -94,3 +96,22 @@ function remove(line) {
         </section>
     </StorefrontLayout>
 </template>
+
+<style scoped>
+/* The circle comes from .cart__close span in the theme; this only strips the
+   browser's own button chrome from around it. */
+.cart__remove {
+    background: none;
+    border: 0;
+    padding: 0;
+    line-height: 0;
+}
+
+/* The panel renders every <span> as an accent-coloured figure. This one is a
+   note about when postage becomes known, not an amount. */
+.cart__postage span {
+    color: #7a7a7a;
+    font-weight: 400;
+    font-size: 0.9rem;
+}
+</style>
